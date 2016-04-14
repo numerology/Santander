@@ -150,7 +150,113 @@ def add_interaction(data, float_cols, n_train, int_degree = 2):
 #    util.save_dataset('extended_data_degree_' + str(int_degree) + 'at' + str(timestamp), X_train, X_test)
     return X_train, X_test, new_float_cols
 
-def float_categorize(float, ):
+def float_categorize(float, threds_list = None, n_level = 4):
+    '''
+    convert float features into categorical ones by quantization
+
+    :param float: float features
+    :param threds_list: thresholds used to quantizing, if not automatic quantization is applied
+    :param n_level: when automatic quantization is applied, the number of level of each feature
+    :return: quantized version of float
+    '''
+    n, d = float.shape
+    if(threds_list is None):
+        #use automatic quantization
+        result = []
+        for i in range(0,d):
+            current_col = float[:, i]
+            ub = max(current_col)
+            lb = min(current_col)
+            step = (ub - lb) / (n_level - 1)
+            thresh = util.frange(lb + step, ub, step)
+            transformed_col = []
+            for j in range(0, n):
+                current_e = current_col[j]
+                compare_res = thresh - current_e
+                transformed_col.append(np.argmax(compare_res > 0) + 1)
+
+            result.append(transformed_col)
+
+    else:
+        result = []
+        for i in range(0,d):
+            current_col = float[:, i]
+            thresh = threds_list[i]
+            transformed_col = []
+            for j in range(0, n):
+                current_e = current_col[j]
+                compare_res = thresh - current_e
+                transformed_col.append(np.argmax(compare_res > 0) + 1)
+
+            result.append(transformed_col)
+
+    return np.array(result).T
+
+
+def int_extraction(int, y_train, n_train):
+    '''
+    extracted feature generation for categorical features:
+    including: frequent/frequency of current value
+               frequent/frequency of current value associated with a positive in the training set
+    :param int: categorical feature set
+    :param y_train: label of training set
+    :param n_train:  number of training samples
+    :return: dictionary
+    '''
+    n, d = int.shape
+    frequent = []
+    frequency = []
+    pos_frequent = []
+    pos_frequency = []
+
+    for i in range(0, d):
+        current_col = int[0:n_train, i]
+        frequent_dict = {}
+        pos_frequent_dict = {}
+        frequency_dict = {}
+        pos_frequency_dict = {}
+        for val in set(current_col):
+            frequent_dict[val] = 0
+            pos_frequent_dict[val] = 0
+        for j in range(0, n_train):
+            frequent_dict[current_col[j]] += 1
+            if(y_train[j] == 1):
+                pos_frequent_dict[current_col[j]] += 1
+
+        for val in frequent_dict:
+            frequency_dict[val] = frequent_dict[val] / n_train
+            pos_frequency_dict[val] = pos_frequent_dict[val] / n_train
+
+        #transform
+        transformed_col1 = []
+        transformed_col2 = []
+        transformed_col3 = []
+        transformed_col4 = []
+        for j in range(0, n):
+            transformed_col1.append(frequent_dict[current_col[j]])
+            transformed_col2.append(frequency_dict[current_col[j]])
+            transformed_col3.append(pos_frequent_dict[current_col[j]])
+            transformed_col4.append(pos_frequency_dict[current_col[j]])
+
+        frequent.append(transformed_col1)
+        frequency.append(transformed_col2)
+        pos_frequent.append(transformed_col3)
+        pos_frequency.append(transformed_col4)
+
+        frequent = np.array(frequent).T
+        frequency = np.array(frequency).T
+        pos_frequent = np.array(pos_frequent).T
+        pos_frequency = np.array(pos_frequency).T
+
+        res = {}
+        res['frequent'] = frequent
+        res['frequency'] = frequency
+        res['pos_frequent'] = pos_frequent
+        res['pos_frequency'] = pos_frequency
+
+        return res
+
+
 
 
 

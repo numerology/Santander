@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 
 SEED = 42
 
+def frange(x, y, jump):
+  while x < y:
+    yield x
+    x += jump
+
 def save_dataset(filename, X, X_test, features=None, features_test=None):
     """Save the training and test sets augmented with the given features."""
     if features is not None:
