@@ -134,6 +134,7 @@ def add_interaction(data, float_cols, n_train, int_degree = 2):
     dp_float = group_float_data(total_float)
     total_float = np.hstack((total_float, dp_float))
 
+    new_float_cols = range(0, total_float.shape[1])
 
     dp_int = group_int_data(total_int, degree = 2)
     new_total_int = np.hstack((total_int, dp_int))
@@ -146,21 +147,113 @@ def add_interaction(data, float_cols, n_train, int_degree = 2):
     X_test = total_data[n_train:, :]
     ts = time.time()
     timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-    util.save_dataset('extended_data_degree_' + str(int_degree) + 'at' + str(timestamp), X_train, X_test)
-    return X_train, X_test
+#    util.save_dataset('extended_data_degree_' + str(int_degree) + 'at' + str(timestamp), X_train, X_test)
+    return X_train, X_test, new_float_cols
+
+def float_categorize(float, ):
 
 
 
-
-
-
-def feature_select(model, data, seed = 39):
+def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     '''
     :param model: model we are running selection for
-    :param data: training data
+    :param data: training X
+    :param ytrain: y in training set
+    :param list_of_float: list of ordinal features
     :param seed: random seed
-    :return: list of good features
+    :return: transformed data set and training set with good features,
+        and the number of ordinal features. In the stacked matrix, ordinal
+        features appear first
     '''
+
+    n, d = X.shape
+    list_of_int = [x for x in range(0,d) if x not in list_of_float]
+    X_float = X[:, list_of_float]
+    X_test_float = Xtest[:, list_of_float]
+    X_int = X[:, list_of_int]
+    X_test_int = Xtest[:, list_of_int]
+
+    Xts = range(0, len(list_of_float))
+    print('performing feature selection on ordinal data')
+    score_hist = []
+    N = 10
+
+    good_features = set([])
+    while len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]:
+        scores = []
+        for f in range(len(Xts)):
+            if f not in good_features:
+                feats = list(good_features) + [f]
+                Xt = np.hstack([X_float[:,j:j+1] for j in feats])
+                score = util.cv_loop(Xt, y_train, model, N)
+                scores.append((score, f))
+                print "Feature: %i Mean AUC: %f" % (f, score)
+        good_features.add(sorted(scores)[-1][1])
+        score_hist.append(sorted(scores)[-1])
+        print "Current features: %s" % sorted(list(good_features))
+
+    # Remove last added feature from good_features
+    good_features.remove(score_hist[-1][1])
+    good_features = sorted(list(good_features))
+    print(good_features)
+
+    good_features_float = good_features
+
+    X_float_train_good = X_float[:, good_features_float]
+    X_float_test_good = X_test_float[:, good_features_float]
+
+    Xts = [OneHotEncoder(X_int[:, [i]])[0] for i in range(len(list_of_int))]
+    print('Performing feature selection on categorical features')
+    score_hist = []
+    N = 10
+
+    good_features = set([])
+    scores = []
+    score_hist = []
+    cnt = 0
+
+    X_good_float = csr_matrix(X_float_train_good)
+    while len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]:
+        if cnt > 0:
+            good_features.add(sorted(scores)[-1][1])
+            scores = []
+        for f in range(len(Xts)):
+            if f not in good_features:
+                feats = list(good_features) + [f]
+                Xt = sparse.hstack([Xts[j] for j in feats]).tocsr()
+                Xt = sparse.hstack([X_good_float, Xt]).tocsr()
+                score = util.cv_loop(Xt, y_train, model, N)
+                scores.append((score, f))
+                print "Feature: %i Mean AUC: %f" % (f, score)
+
+        score_hist.append(sorted(scores)[-1])
+        cnt += 1
+        print "Current features: %s" % sorted(list(good_features))
+
+
+    # Remove last added feature from good_features
+
+    good_features = sorted(list(good_features))
+    print("In this run, final selection is:")
+    print(good_features)
+    good_features_int = good_features
+
+    X_int_train_good = X_int[:, good_features_int]
+    X_int_test_good = X_test_int[:, good_features_int]
+
+    X_train_all = np.hstack((X_float_train_good, X_int_train_good))
+    X_test_all = np.hstack((X_float_test_good, X_int_test_good))
+
+    return X_train_all, X_test_all, X_float_test_good.shape[1]
+
+
+
+
+
+
+
+
+
 
 
 
