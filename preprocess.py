@@ -91,14 +91,15 @@ def basic_info(data, use_col = None):
         #couting frequent
         if(n_values > 10):
             current_dict['frequent'] = 'continuous, check the histogram'
-            # plot a histogram instead
-            # hist, bins = np.histogram(current_col, bins = 20)
-            # width = (bins[1] - bins[0])
-            # center = (bins[:-1] + bins[1:]) / 2
-            # #   print(bins)
-            # #   print(hist)
-            # plt.bar(center, hist, align='center', width=width)
-            # plt.savefig('data/' + i + '_hist.png', bbox_inches='tight')
+            #plot a histogram instead
+            hist, bins = np.histogram(current_col, bins = 20)
+            width = (bins[1] - bins[0])
+            center = (bins[:-1] + bins[1:]) / 2
+            # print(bins)
+            # print(hist)
+            plt.bar(center, hist, align='center', width=width)
+            plt.savefig('data/' + i + '_hist.png', bbox_inches='tight')
+            plt.clf()
 
         else:
             frequent_dict = {}
