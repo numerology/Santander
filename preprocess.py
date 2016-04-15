@@ -73,12 +73,13 @@ def basic_info(data, use_col = None):
 
     n, d = data.shape
     if(use_col is None):
-        use_col = range(0, d)
+        use_col = data.columns.values
 
     data = data[use_col]
     col_name = data.columns.values
     info_list = []
     for i in use_col:
+        print('gathering info for '+ i)
         current_dict = {}
         set_values = []
         current_col = data[i]
@@ -91,13 +92,13 @@ def basic_info(data, use_col = None):
         if(n_values > 10):
             current_dict['frequent'] = 'continuous, check the histogram'
             # plot a histogram instead
-            hist, bins = np.histogram(current_col, bins = 20)
-            width = (bins[1] - bins[0])
-            center = (bins[:-1] + bins[1:]) / 2
-            #   print(bins)
-            #   print(hist)
-            plt.bar(center, hist, align='center', width=width)
-            plt.savefig('data/' + i + '_hist.png', bbox_inches='tight')
+            # hist, bins = np.histogram(current_col, bins = 20)
+            # width = (bins[1] - bins[0])
+            # center = (bins[:-1] + bins[1:]) / 2
+            # #   print(bins)
+            # #   print(hist)
+            # plt.bar(center, hist, align='center', width=width)
+            # plt.savefig('data/' + i + '_hist.png', bbox_inches='tight')
 
         else:
             frequent_dict = {}
@@ -112,8 +113,8 @@ def basic_info(data, use_col = None):
         info_list.append(current_dict)
 
     ts = time.time()
-    timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-    pickle.dump(info_list, 'info_at_' + str(timestamp) + '.pkl')
+    timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y_%m_%d_%H_%M_%S')
+    util.save_obj(info_list, 'info_at_' + str(timestamp) + '.pkl')
     return info_list
 
 def add_interaction(data, float_cols, n_train, int_degree = 2):

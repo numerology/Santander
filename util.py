@@ -52,6 +52,10 @@ def load_dataset(filename, use_cache=True):
 
     return data
 
+def save_obj(obj, filepath):
+    with open(filepath, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
 def make_submission(filename, preds, ids):
     submission = pd.DataFrame({'id': ids, 'TARGET':preds})
 
