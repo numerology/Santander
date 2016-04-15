@@ -18,4 +18,11 @@ cols = train_df.columns.values
 used_cols = [x for x in cols if not (x == 'ID' or x == 'TARGET')]
 Xtrain = train_df[used_cols]
 
-print(preprocess.basic_info(Xtrain))
+# print(preprocess.basic_info(Xtrain))
+'''
+Observation:
+Many features are useless, having only one value,
+Continuous vars are distorted except num_var35 and var15.
+Strategy: discard useless features,
+for continuous var which are extremely distorted, using its rank instead.
+'''
