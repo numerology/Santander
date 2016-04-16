@@ -2,3 +2,7 @@
 *.pkl
 *.png
 *.pyc
+*.xml
+*.xml
+.idea/workspace.xml
+*.xml
