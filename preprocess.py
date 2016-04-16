@@ -10,6 +10,7 @@ from scipy.sparse import csr_matrix
 from itertools import combinations
 import time
 import datetime
+import operator
 import cPickle as pickle
 import util
 
@@ -193,6 +194,33 @@ def float_categorize(float, threds_list = None, n_level = 4):
             result.append(transformed_col)
 
     return np.array(result).T
+
+
+def ranking(score):
+    '''
+    method to create a score into rank, modified from KazAnova's code
+    :param score: 1-d array which is to be converted, should contain both training and test samples
+    :return: vector of ranking
+    '''
+    """ """
+    data=[]
+    for i in range(len(score)):
+        data.append([score[i],i])
+    data=sorted(data, key=operator.itemgetter(0), reverse=False)
+    value=data[0][0]
+    data[0][0]=1
+    for i in range(1,len(score)):
+        val=data[i][0]
+        if val>value :
+            value=val
+            data[i][0]=(i+1)
+        else :
+            data[i][0]=data[i-1][0]
+    data=sorted(data, key=operator.itemgetter(1), reverse=False)
+    final_rank=[]
+    for i in range(len(score)):
+        final_rank.append(data[i][0])
+    return final_rank
 
 
 def int_extraction(int, y_train, n_train):

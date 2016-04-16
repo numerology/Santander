@@ -56,6 +56,17 @@ def save_obj(obj, filepath):
     with open(filepath, 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
+def load_obj(filepath):
+    data = None
+    read_mode = 'rb' if '.pkl' in filepath else 'r'
+    try:
+        with open(filepath, read_mode) as f:
+            data = pickle.load(f)
+    except IOError:
+        pass
+
+    return data
+
 def make_submission(filename, preds, ids):
     submission = pd.DataFrame({'id': ids, 'TARGET':preds})
 
