@@ -312,7 +312,7 @@ def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     Xts = range(0, len(list_of_float))
     print('performing feature selection on ordinal data')
     score_hist = []
-    N = 10
+    N = 5
 
     good_features = set([])
     while len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]:
@@ -341,7 +341,7 @@ def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     Xts = [OneHotEncoder(X_int[:, [i]])[0] for i in range(len(list_of_int))]
     print('Performing feature selection on categorical features')
     score_hist = []
-    N = 10
+    N = 5
 
     good_features = set([])
     scores = []
