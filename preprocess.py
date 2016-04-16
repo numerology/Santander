@@ -198,7 +198,7 @@ def float_categorize(float, threds_list = None, n_level = 4):
 
 def ranking(score):
     '''
-    method to create a score into rank, from KazAnova's code
+    method to create a score into rank, modified from KazAnova's code
     :param score: 1-d array which is to be converted, should contain both training and test samples
     :return: vector of ranking
     '''
