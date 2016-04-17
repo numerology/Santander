@@ -3,4 +3,5 @@
 *.png
 *.pyc
 .idea/
-.idea/workspace.xml
+*.xml
+
