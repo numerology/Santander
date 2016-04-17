@@ -69,8 +69,8 @@ for i in range(N):
   #       X_train = np.transpose(X_train)
   #       X_cv = np.matrix(X_cv)
   #       X_cv = np.transpose(X_cv)
-    #model = ExtraTreesClassifier(random_state= i * SEED)
-    #selectedX, selectedX_test, fs = preprocess.model_feature_select(model_running, X_train, y_train, X_cv)
+    model = ExtraTreesClassifier(random_state= i * SEED)
+    selectedX, selectedX_test, fs = preprocess.model_feature_select(model, X_train, y_train, X_cv)
 
     model_running.fit(X, y)
     preds = model_running.predict_proba(X_cv)[:, 1]
