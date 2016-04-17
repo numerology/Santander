@@ -103,8 +103,9 @@ print(useful_X_train.shape)
 
 #A basic logis regression gives us auc around 0.75
 #Given the huge number of feature we have, no interaction term this time, but still some feature selection
-X_train_all, X_test_all, n_ord_good = preprocess.feature_select(model, useful_X_train, y_train = train_y, Xtest=useful_X_test, list_of_float=range(0, n_ord))
+X_train_all, X_test_all, n_ord_good = preprocess.feature_select(model, useful_X_train, y_train = train_y, Xtest=useful_X_test, list_of_float=range(0, n_ord), n_feat_limit = 12)
 util.save_dataset('post_selection', X_train_all, X_test_all)
+# This is very slow, but I think in the end it gives around 0.8
 
 
 

@@ -8,6 +8,7 @@ from sklearn import preprocessing
 from scipy import sparse
 from scipy.sparse import csr_matrix
 from itertools import combinations
+from sklearn.feature_selection import SelectFromModel
 import time
 import datetime
 import operator
@@ -290,7 +291,7 @@ def int_extraction(int, y_train, n_train):
 
 
 
-def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
+def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39, n_feat_limit = None):
     '''
     :param model: model we are running selection for
     :param data: training X
@@ -303,6 +304,9 @@ def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     '''
 
     n, d = X.shape
+    if n_feat_limit is None:
+        n_feat_limit = d
+
     list_of_int = [x for x in range(0,d) if x not in list_of_float]
     X_float = X[:, list_of_float]
     X_test_float = Xtest[:, list_of_float]
@@ -315,7 +319,7 @@ def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     N = 5
 
     good_features = set([])
-    while len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]:
+    while len(good_features) < (n_feat_limit/2) + 1 and (len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]):
         scores = []
         for f in range(len(Xts)):
             if f not in good_features:
@@ -349,7 +353,7 @@ def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     cnt = 0
 
     X_good_float = csr_matrix(X_float_train_good)
-    while len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]:
+    while  len(good_features) < (n_feat_limit/2) + 1 and (len(score_hist) < 2 or score_hist[-1][0] > score_hist[-2][0]):
         if cnt > 0:
             good_features.add(sorted(scores)[-1][1])
             scores = []
@@ -383,6 +387,14 @@ def feature_select(model, X, y_train, Xtest, list_of_float, seed = 39):
     return X_train_all, X_test_all, X_float_test_good.shape[1]
 
 
+def model_feature_select(clf, X, y, Xtest):
+    selector = clf.fit(X, y)
+    fs = SelectFromModel(selector, prefit = True)
+    selectedX = fs.transform(X)
+    selectedX_test = fs.transform(Xtest)
+
+
+    return selectedX, selectedX_test, fs
 
 
 
