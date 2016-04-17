@@ -129,7 +129,7 @@ for i in range(0, d):
         list_float.append(i)
 
 #generate some interaction terms: d = 86... Try without interactions first
-
+#ordinal part is [0, 23, 30, 35, 36, 37, 38, 39]
 X_train_all, X_test_all, n_ord_good = preprocess.feature_select(model, X_train, train_y, Xtest, list_float, seed = 39, n_feat_limit = 0.8 * d)
 util.save_dataset('post_selection', X_train_all, X_test_all)
 print(n_ord_good)
