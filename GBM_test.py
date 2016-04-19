@@ -93,46 +93,46 @@ k_start = 50
 step = 20
 k_end = 400
 k = k_start
-while (len(score_hist) < 2 or score_hist[-1] > score_hist[-2]):
+# while (len(score_hist) < 2 or score_hist[-1] > score_hist[-2]):
 
-    selectK = SelectKBest(f_classif, k=k)
+#     selectK = SelectKBest(f_classif, k=k)
 
-    mean_auc = 0.
-    for i in range(N):
-        X_train, X_cv, y_train, y_cv = cross_validation.train_test_split(
-            X, y, test_size=.20,
-            random_state=i*39)
-      #  print(X_train)
-      #  print(y_train)
-      #
-      #   if len(X_train.shape) == 1:
-      #       X_train = np.matrix(X_train)
-      #       X_train = np.transpose(X_train)
-      #       X_cv = np.matrix(X_cv)
-      #       X_cv = np.transpose(X_cv)
-        X_train = selectK.fit_transform(X_train, y_train)
-        X_cv = selectK.transform(X_cv)
+#     mean_auc = 0.
+#     for i in range(N):
+#         X_train, X_cv, y_train, y_cv = cross_validation.train_test_split(
+#             X, y, test_size=.20,
+#             random_state=i*39)
+#       #  print(X_train)
+#       #  print(y_train)
+#       #
+#       #   if len(X_train.shape) == 1:
+#       #       X_train = np.matrix(X_train)
+#       #       X_train = np.transpose(X_train)
+#       #       X_cv = np.matrix(X_cv)
+#       #       X_cv = np.transpose(X_cv)
+#         X_train = selectK.fit_transform(X_train, y_train)
+#         X_cv = selectK.transform(X_cv)
 
-        clfs.fit(X_train, y_train)
-        preds = clfs.predict_proba(X_cv)[:, 1]
+#         clfs.fit(X_train, y_train)
+#         preds = clfs.predict_proba(X_cv)[:, 1]
 
-        auc = metrics.roc_auc_score(y_cv, preds)
-        print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
-        mean_auc += auc
+#         auc = metrics.roc_auc_score(y_cv, preds)
+#         print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
+#         mean_auc += auc
 
-    mean_auc = mean_auc/N
-    print('When k = ' + str(k) + ', the auc is: ' + str(mean_auc))
-    score_hist.append(mean_auc)
-    k += step
-    if(k > k_end):
-        break
+#     mean_auc = mean_auc/N
+#     print('When k = ' + str(k) + ', the auc is: ' + str(mean_auc))
+#     score_hist.append(mean_auc)
+#     k += step
+#     if(k > k_end):
+#         break
 
-bestK = k #best k is around 90
+bestK = 90 #best k is around 90
 #find the best n_estimator
 score_hist = []
-n_start = 20
+n_start = 100
 step = 10
-n_end = 100
+n_end = 200
 n_est = n_start
 selectK = SelectKBest(f_classif, k=bestK)
 selectK.fit(X, y)
@@ -152,6 +152,8 @@ while (len(score_hist) < 2 or score_hist[-1] > score_hist[-2]):
     n_est += step
     if(n_est > n_end):
         break
+
+#best N-estimator = 100 with auc = 0.83445
 
 
 
