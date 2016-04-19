@@ -72,7 +72,7 @@ def make_submission(filename, preds, ids):
 
     submission.to_csv(os.path.join('submission', filename + '.csv'), index = False)
 
-def cv_loop(X, y, model, N):
+def cv_loop(X, y, model, N, default_proba = False):
     mean_auc = 0.
     for i in range(N):
         X_train, X_cv, y_train, y_cv = cross_validation.train_test_split(
@@ -88,7 +88,10 @@ def cv_loop(X, y, model, N):
       #       X_cv = np.transpose(X_cv)
 
         model.fit(X_train, y_train)
-        preds = model.predict_proba(X_cv)[:, 1]
+        if(not default_proba):
+            preds = model.predict_proba(X_cv)[:, 1]
+        else:
+            preds = model.predict(X_cv)
 
         auc = metrics.roc_auc_score(y_cv, preds)
         print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
