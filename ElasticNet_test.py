@@ -126,7 +126,7 @@ down to 0.753
 
 6th trial: change the threshold of cat to 2: 0.759, not interesting
 
-7th trial, with selectk
+7th trial, with selectk, even worse
 '''
 # selectK = SelectKBest(f_classif, k=150)
 # X = selectK.fit_transform(X, y)

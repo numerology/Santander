@@ -93,6 +93,11 @@ def cv_loop(X, y, model, N, default_proba = False):
         else:
             preds = model.predict(X_cv)
 
+        preds = (preds - np.min(preds)) / (np.max(preds) - np.min(preds)) 
+
+        # print(np.max(preds))
+        # print(np.min(preds))
+
         auc = metrics.roc_auc_score(y_cv, preds)
         print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
         mean_auc += auc
