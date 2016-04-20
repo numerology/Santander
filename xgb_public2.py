@@ -10,8 +10,8 @@ from sklearn.decomposition import PCA
 
 if __name__ == "__main__":
     print('Started!')
-    train = pd.read_csv('../input/train.csv')
-    test = pd.read_csv('../input/test.csv')
+    train = pd.read_csv('data/train.csv')
+    test = pd.read_csv('data/test.csv')
     features = train.columns[1:-1]
     train.insert(1, 'SumZeros', (train[features] == 0).astype(int).sum(axis=1))
     test.insert(1, 'SumZeros', (test[features] == 0).astype(int).sum(axis=1))

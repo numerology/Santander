@@ -102,7 +102,7 @@ X = np.insert(X, 0, x_train_projected[:, 0], axis = 1)
 #Xtest.insert(1, 'PCATwo', x_test_projected[:, 1])
 
 
-model = ElasticNet(max_iter = 1000, alpha = 0.001, l1_ratio = 0.11, selection = 'random')
+model = ElasticNet(max_iter = 100, alpha = 0.001, l1_ratio = 0.11, selection = 'random')
 '''
 first trial
 no ranking transform
@@ -132,14 +132,14 @@ down to 0.753
 # X = selectK.fit_transform(X, y)
 
 
-mean_auc = util.cv_loop(X, y, model, N = 5, default_proba = True)
-print(mean_auc)
+#mean_auc = util.cv_loop(X, y, model, N = 5, default_proba = True)
+#print(mean_auc)
 params = {'alpha':[0.001, 0.002, 0.003],
-		  'l1_ratio':[0.11,0.13,0.15]
+		  'l1_ratio':[0.11,0.13,0.15,0.20]
 			}
 #let's use alpha = 0.001, l1ratio = 0.11, giving us 0.792
 
-# clf = GridSearchCV(model, params, scoring = 'roc_auc', verbose = 1)
-# clf.fit(X, y)
-# print(clf.best_score_)
-# print(clf.best_params_)
+clf = GridSearchCV(model, params, scoring = 'roc_auc', verbose = 1)
+clf.fit(X, y)
+print(clf.best_score_)
+print(clf.best_params_)
