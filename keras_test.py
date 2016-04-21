@@ -38,6 +38,7 @@ df_test = df_test.drop(['ID'], axis=1)
 X_test = pipeline.transform(df_test)
 ID_test = df_id
 
+#TODO: Try different activation function: relu and else
 model = Sequential()
 model.add(Dense(32, input_shape=(X_train.shape[1],), activation='sigmoid'))
 model.add(Dropout(0.25))
@@ -45,6 +46,7 @@ model.add(Dense(32, activation='sigmoid'))
 model.add(Dropout(0.25))
 model.add(Dense(1, activation='sigmoid'))
 
+#TODO: tuning params, lose function
 nb_epoch = 100
 opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='binary_crossentropy', optimizer=opt)
