@@ -23,6 +23,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import SGD
 
+import operator
+
 #from santander.preprocessing import ColumnDropper
 class ColumnDropper(BaseEstimator):
     """
@@ -36,6 +38,20 @@ class ColumnDropper(BaseEstimator):
 
     def transform(self, X):
         return X.drop(self.drop, axis=1)
+
+def cv_auc(compiled_model, epochs, X, y, N, SEED=39):
+    mean_auc = 0.
+    for i in range(N):
+        X_train_cv, X_test_cv, y_train_cv, y_test_cv = cross_validation.train_test_split(
+                X, y, test_size=.20,
+                random_state=i*SEED)
+        model.fit(X_train_cv, y_train_cv, nb_epoch=epochs)
+        preds = model.predict_proba(X_test_cv)
+        auc = metrics.roc_auc_score(y_test_cv, preds)
+        print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
+        mean_auc += auc
+    print 'Final AUC: %f' % (mean_auc/N)
+    return mean_auc/N
 
 #from santander.preprocessing import ZERO_VARIANCE_COLUMNS, CORRELATED_COLUMNS
 ZERO_VARIANCE_COLUMNS = [
@@ -68,12 +84,22 @@ pipeline = Pipeline([
 ])
 
 df_train = pd.read_csv('data/train.csv')
+# Even out the targets
+df_train_1 = df_train[df_train["TARGET"] == 1]
+print('pos samples: '+str(df_train_1.shape[0]))
+df_train_0 = df_train[df_train["TARGET"] == 0].head(df_train_1.shape[0] * 2)
+df_train = df_train_1.append(df_train_0)
+
+
 df_target = df_train['TARGET']
 df_train = df_train.drop(['TARGET', 'ID'], axis=1)
 
 pipeline = pipeline.fit(df_train)
 X_train = pipeline.transform(df_train)
+print(X_train.shape)
 y_train = df_target
+
+
 
 df_test = pd.read_csv('data/test.csv')
 df_id = df_test['ID']
@@ -83,6 +109,7 @@ ID_test = df_id
 
 #TODO: Try different activation function: relu and else
 '''
+4/22
 original setting: sigmoid 2 * 32nodes, no sample balance - 0.83447
 relu 2 * 32nodes, no sample balance - slow and bad, invalid prob
 softmax, too much loss...
@@ -103,42 +130,63 @@ hinge: 0.7x
 poisson: in the unbalanced case, because there are so many 0's, poisson is approximately logloss
 but it still gives us 0.8368
 cosine_proximity: invalid
-
-TODO: try balanced samples
 '''
+
+'''
+4/23:
+Adding balanced samples, # of 0 is 1.5 * # of 1,
+grid search the best layer and node
+'''
+n_nodes_list = [10, 20, 30, 50, 100, 200]
+n_layers_list = [2, 3, 4, 5, 6]
+
 N_cv = 5
-mean_auc = 0.
+
 SEED = 39
 
-model = Sequential()
-model.add(Dense(1264, input_shape=(X_train.shape[1],), activation='sigmoid'))
-model.add(Dropout(0.25))
-model.add(Dense(1264, activation='sigmoid'))
-model.add(Dropout(0.25))
-model.add(Dense(1264, activation='sigmoid'))
-model.add(Dropout(0.25))
-model.add(Dense(1264, activation='sigmoid'))
-model.add(Dropout(0.25))
-model.add(Dense(1264, activation='sigmoid'))
-model.add(Dropout(0.25))
-model.add(Dense(1, activation='sigmoid'))
+# model = Sequential()
+# model.add(Dense(1264, input_shape=(X_train.shape[1],), activation='sigmoid'))
+# model.add(Dropout(0.25))
+# model.add(Dense(1264, activation='sigmoid'))
+# model.add(Dropout(0.25))
+# model.add(Dense(1264, activation='sigmoid'))
+# model.add(Dropout(0.25))
+# model.add(Dense(1264, activation='sigmoid'))
+# model.add(Dropout(0.25))
+# model.add(Dense(1264, activation='sigmoid'))
+# model.add(Dropout(0.25))
+# model.add(Dense(1, activation='sigmoid'))
+
+result = {}
+
+for n_layer in n_layers_list:
+    for n_node in n_nodes_list:
+        model = Sequential()
+        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='sigmoid'))
+        model.add(Dropout(0.25))
+        for i in range(0, n_layer - 1):
+            model.add(Dense(n_node, activation='sigmoid'))
+            model.add(Dropout(0.25))
+
+        model.add(Dense(1, activation='sigmoid'))
+        nb_epoch = n_layer * n_node
+        opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss='binary_crossentropy', optimizer=opt)
+
+        current_auc = cv_auc(model, nb_epoch, X_train, y_train, N_cv, SEED = 39)
+        result[(n_layer, n_node)] = current_auc
+
+sorted_result = sorted(result.items(), key = operator.itemgetter(1))
+good_results = sorted_result[-10:]
+with open('nodes_layers_nn.txt', 'w') as f:
+    f.write(str(good_results))
 
 #TODO: tuning params, lose function
-nb_epoch = 30
-opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='binary_crossentropy', optimizer=opt)
+# nb_epoch = 30
+# opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+# model.compile(loss='binary_crossentropy', optimizer=opt)
 
-for i in range(N_cv):
-	X_train_cv, X_test_cv, y_train_cv, y_test_cv = cross_validation.train_test_split(
-            X_train, y_train, test_size=.20,
-            random_state=i*SEED)
-	model.fit(X_train_cv, y_train_cv, nb_epoch=nb_epoch)
-	preds = model.predict_proba(X_test_cv)
-	auc = metrics.roc_auc_score(y_test_cv, preds)
-	print "AUC (fold %d/%d): %f" % (i + 1, N_cv, auc)
-	mean_auc += auc
 
-print 'Final AUC: %f' % (mean_auc/N_cv)
 
 # y_pred = model.predict_proba(X_test)
 # submission = pd.DataFrame({'ID': ID_test, 'TARGET': y_pred[:, -1]})
