@@ -45,7 +45,7 @@ def cv_auc(compiled_model, epochs, X, y, N, SEED=39):
         X_train_cv, X_test_cv, y_train_cv, y_test_cv = cross_validation.train_test_split(
                 X, y, test_size=.20,
                 random_state=i*SEED)
-        model.fit(X_train_cv, y_train_cv, nb_epoch=epochs)
+        model.fit(X_train_cv, y_train_cv, nb_epoch=epochs, verbose = 0)
         preds = model.predict_proba(X_test_cv)
         auc = metrics.roc_auc_score(y_test_cv, preds)
         print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
@@ -135,10 +135,19 @@ cosine_proximity: invalid
 '''
 4/23:
 Adding balanced samples, # of 0 is 1.5 * # of 1,
-grid search the best layer and node
+grid search the best layer and node:
+it says 3 layers with 500 nodes per layer
 '''
-n_nodes_list = [10, 20, 30, 50, 100, 200]
-n_layers_list = [2, 3, 4, 5, 6]
+n_nodes_list = [150, 200, 300, 500, 700]
+n_layers_list = [2, 3]
+'''
+4/23:
+Then let's tune dropout and learning rate
+both take 0.1
+'''
+lr_list = [0.01, 0.05, 0.1, 0.2, 0.4]
+dropout_list = [0.1, 0.15, 0.25, 0.4, 0.6]
+
 
 N_cv = 5
 
@@ -159,26 +168,44 @@ SEED = 39
 
 result = {}
 
-for n_layer in n_layers_list:
-    for n_node in n_nodes_list:
+# for n_layer in n_layers_list:
+#     for n_node in n_nodes_list:
+#         model = Sequential()
+#         model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='sigmoid'))
+#         model.add(Dropout(0.25))
+#         for i in range(0, n_layer - 1):
+#             model.add(Dense(n_node, activation='sigmoid'))
+#             model.add(Dropout(0.25))
+
+#         model.add(Dense(1, activation='sigmoid'))
+#         nb_epoch = n_layer * n_node
+#         opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+#         model.compile(loss='binary_crossentropy', optimizer=opt)
+
+#         current_auc = cv_auc(model, nb_epoch, X_train, y_train, N_cv, SEED = 39)
+#         result[(n_layer, n_node)] = current_auc
+
+for dropout in dropout_list:
+    for learning_rate in lr_list:
         model = Sequential()
-        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='sigmoid'))
-        model.add(Dropout(0.25))
-        for i in range(0, n_layer - 1):
-            model.add(Dense(n_node, activation='sigmoid'))
-            model.add(Dropout(0.25))
+        model.add(Dense(500, input_shape=(X_train.shape[1],), activation='sigmoid'))
+        model.add(Dropout(dropout))
+        for i in range(0, 2):
+            model.add(Dense(500, activation='sigmoid'))
+            model.add(Dropout(dropout))
 
         model.add(Dense(1, activation='sigmoid'))
-        nb_epoch = n_layer * n_node
-        opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+        nb_epoch = 100
+        opt = SGD(lr=learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='binary_crossentropy', optimizer=opt)
 
         current_auc = cv_auc(model, nb_epoch, X_train, y_train, N_cv, SEED = 39)
-        result[(n_layer, n_node)] = current_auc
+        result[(dropout, learning_rate)] = current_auc
+
 
 sorted_result = sorted(result.items(), key = operator.itemgetter(1))
 good_results = sorted_result[-10:]
-with open('nodes_layers_nn.txt', 'w') as f:
+with open('dropout_lr_nn.txt', 'w') as f:
     f.write(str(good_results))
 
 #TODO: tuning params, lose function
