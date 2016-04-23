@@ -3,6 +3,13 @@ __author__ = 'Jiaxiao Zheng'
 Borrow code from boulder
 origin:
 https://github.com/BoulderDataScience/kaggle-santander/blob/master/submission_nn.py
+
+Note: use gpu enabled computing can make both theano and tensorflow faster, but the 
+benefit is not significant unless # of node > 1200
+E.G. When I have 6000 node, one epoch takes 12s for gpu,
+while cpu needs 120s
+env: GPU: NVidia GTX 970, Cuda 7.0, cuDNN 4.0
+CPU: i7-6700 3.4GHz
 '''
 import pandas as pd
 
@@ -104,18 +111,22 @@ mean_auc = 0.
 SEED = 39
 
 model = Sequential()
-model.add(Dense(32, input_shape=(X_train.shape[1],), activation='sigmoid'))
+model.add(Dense(1264, input_shape=(X_train.shape[1],), activation='sigmoid'))
 model.add(Dropout(0.25))
-model.add(Dense(32, activation='sigmoid'))
+model.add(Dense(1264, activation='sigmoid'))
 model.add(Dropout(0.25))
-# model.add(Dense(32, activation='sigmoid'))
-# model.add(Dropout(0.25))
+model.add(Dense(1264, activation='sigmoid'))
+model.add(Dropout(0.25))
+model.add(Dense(1264, activation='sigmoid'))
+model.add(Dropout(0.25))
+model.add(Dense(1264, activation='sigmoid'))
+model.add(Dropout(0.25))
 model.add(Dense(1, activation='sigmoid'))
 
 #TODO: tuning params, lose function
 nb_epoch = 30
 opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='cosine_proximity', optimizer=opt)
+model.compile(loss='binary_crossentropy', optimizer=opt)
 
 for i in range(N_cv):
 	X_train_cv, X_test_cv, y_train_cv, y_test_cv = cross_validation.train_test_split(
