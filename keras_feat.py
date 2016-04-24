@@ -81,8 +81,16 @@ feature_cols = list(df_train.columns)
 feature_cols.remove("TARGET")
 df_test = pd.read_csv("data/test.csv", index_col='ID')
 
+pipeline = Pipeline([
+    ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS)),
+ #   ('std', StandardScaler())
+])
+
 # Split up the data
-X_all = df_train[feature_cols]
+#X_all = df_train[feature_cols]
+pipeline = pipeline.fit(df_train[feature_cols])
+X_all = pipeline.transform(df_train[feature_cols])
+print(X_all.columns)
 y_all = df_train["TARGET"]
 X_train, X_test, y_train, y_test = cross_validation.train_test_split(
     X_all, y_all, test_size=0.2, random_state=5, stratify=y_all)
@@ -104,7 +112,7 @@ model = xgb.XGBRegressor(
 
 # Train cv
 xgb_param = model.get_xgb_params()
-dtrain = xgb.DMatrix(X_train.values, label=y_train.values, missing=np.nan)
+dtrain = xgb.DMatrix(X_train, label=y_train, missing=np.nan)
 cv_result = xgb.cv(
     xgb_param,
     dtrain,
@@ -138,18 +146,29 @@ print('pos samples: '+str(df_train_1.shape[0]))
 df_train_0 = df_train[df_train["TARGET"] == 0].head(df_train_1.shape[0] * 2)
 df_train = df_train_1.append(df_train_0)
 
-
-not_important = [x for x in feature_cols if not x in feat_imp]
-X_all = df_train.copy(deep=True)
+X_all = df_train[feat_imp].copy(deep=True)
+y_all = df_train["TARGET"]
+#X_all[feat_imp] = sklearn.preprocessing.scale(X_all, axis=0, with_mean=True, with_std=True, copy=True)
 pipeline = Pipeline([
-    ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS+not_important)),
+ #   ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS)),
     ('std', StandardScaler())
 ])
 pipeline = pipeline.fit(X_all)
 X_train = pipeline.transform(X_all)
-y_train = df_train["TARGET"]
+y_train = y_all
+
+# not_important = [x for x in feature_cols if not x in feat_imp]
+# print(not_important)
+# X_all = df_train.copy(deep=True)
+# pipeline = Pipeline([
+#     ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS+not_important)),
+#     ('std', StandardScaler())
+# ])
+# pipeline = pipeline.fit(X_all)
+# X_train = pipeline.transform(X_all)
+# y_train = df_train["TARGET"]
 #X_all[feat_imp] = sklearn.preprocessing.scale(X_all, axis=0, with_mean=True, with_std=True, copy=True)
-print(X_train.shape)
+#print(X_train['TARGET'])
 print(y_train.shape)
 
 
