@@ -153,6 +153,9 @@ N_cv = 5
 
 SEED = 39
 
+print(X_train.shape)
+print(y_train.shape)
+
 # model = Sequential()
 # model.add(Dense(1264, input_shape=(X_train.shape[1],), activation='sigmoid'))
 # model.add(Dropout(0.25))
