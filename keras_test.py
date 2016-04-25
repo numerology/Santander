@@ -55,9 +55,9 @@ def cv_auc(compiled_model, epochs, X, y, N, SEED=39, class_weight = {1:0.5, 0:0.
         X_train_cv, X_test_cv = X[train_index], X[test_index]
         y_train_cv, y_test_cv = y[train_index], y[test_index]
         if(epochs == -1):
-            es = EarlyStopping(monitor='loss', patience=5, mode='min', verbose=1)
+            es = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
             model.fit(X_train_cv, y_train_cv, nb_epoch=2000, shuffle = True, verbose = 1, 
-                callbacks = [es], class_weight = class_weight)
+                callbacks = [es], validation_data = (X_test_cv, y_test_cv), class_weight = class_weight)
         else:
             model.fit(X_train_cv, y_train_cv, nb_epoch=epochs, shuffle = True, verbose = 1,
                 class_weight = class_weight)
@@ -195,7 +195,8 @@ for n_layer in n_layers_list:
         model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='sigmoid'))
         model.add(Dropout(0.5))
         for i in range(0, n_layer - 1):
-            model.add(Dense(n_node, activation='sigmoid'))
+            model.add(Dense(n_node, activation='sigmoid', 
+                activity_regularizer = activity_l1l2(1e-4, 1e-4)))
             model.add(Dropout(0.5))
 
         model.add(Dense(1, activation='sigmoid'))
@@ -226,7 +227,7 @@ for n_layer in n_layers_list:
 
 sorted_result = sorted(result.items(), key = operator.itemgetter(1))
 good_results = sorted_result[-10:]
-with open('layer_nodes_nn_tillconverge.txt', 'w') as f:
+with open('layer_nodes_nn_regular.txt', 'w') as f:
     f.write(str(good_results))
 
 #TODO: tuning params, lose function
