@@ -196,4 +196,4 @@ with tf.Session(graph=graph) as session:
             print("Batch loss at step {0:d}: {1:.6f}".format(step, l))
             print("Batch score: {0:.6f}".format(roc_auc_score(batch_y[:, 1], pred[:, 1])))
             print("Test score: {0:.6f}".format(roc_auc_score(y_test.values, yhat_test.eval()[:, 1])))
-    print("Final Test score: {0:.6f}".format(roc_auc_score(y_test.values, yhat_test.eval()[:, 1])))
+    print("Final Test score: {0:.6f}".format(roc_auc_score(y_test.values, yhat_test.eval()[:, 1]))

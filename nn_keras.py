@@ -22,8 +22,6 @@ from sklearn import metrics, cross_validation
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import SGD
-from keras.callbacks import EarlyStopping
-from keras.regularizers import l1l2, activity_l1l2
 
 import operator
 
@@ -41,32 +39,17 @@ class ColumnDropper(BaseEstimator):
     def transform(self, X):
         return X.drop(self.drop, axis=1)
 
-def cv_auc(compiled_model, epochs, X, y, N, SEED=39, class_weight = {1:0.5, 0:0.5}):
+def cv_auc(compiled_model, epochs, X, y, N, SEED=39):
     mean_auc = 0.
-    skf = cross_validation.StratifiedKFold(y, n_folds = N, shuffle = True, random_state = SEED)
-
-    i = 0
-    for train_index, test_index in skf:
-        # Update 4/25, use stratified k fold
-
-        # X_train_cv, X_test_cv, y_train_cv, y_test_cv = cross_validation.train_test_split(
-        #         X, y, test_size=.20,
-        #         random_state=i*SEED)
-        X_train_cv, X_test_cv = X[train_index], X[test_index]
-        y_train_cv, y_test_cv = y[train_index], y[test_index]
-        if(epochs == -1):
-            es = EarlyStopping(monitor='loss', patience=5, mode='min', verbose=1)
-            model.fit(X_train_cv, y_train_cv, nb_epoch=2000, shuffle = True, verbose = 1, 
-                callbacks = [es], class_weight = class_weight)
-        else:
-            model.fit(X_train_cv, y_train_cv, nb_epoch=epochs, shuffle = True, verbose = 1,
-                class_weight = class_weight)
+    for i in range(N):
+        X_train_cv, X_test_cv, y_train_cv, y_test_cv = cross_validation.train_test_split(
+                X, y, test_size=.20,
+                random_state=i*SEED)
+        model.fit(X_train_cv, y_train_cv, nb_epoch=epochs, verbose = 0)
         preds = model.predict_proba(X_test_cv)
         auc = metrics.roc_auc_score(y_test_cv, preds)
         print "AUC (fold %d/%d): %f" % (i + 1, N, auc)
         mean_auc += auc
-        i += 1
-
     print 'Final AUC: %f' % (mean_auc/N)
     return mean_auc/N
 
@@ -93,7 +76,7 @@ CORRELATED_COLUMNS = [
     'num_trasp_var33_out_ult1', 'delta_num_venta_var44_1y3'
 ]
 
-filename = 'submission_nn.csv'
+filename = 'submission_nn_4_24.csv'
 
 pipeline = Pipeline([
     ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS)),
@@ -104,10 +87,9 @@ df_train = pd.read_csv('data/train.csv')
 # Even out the targets
 df_train_1 = df_train[df_train["TARGET"] == 1]
 print('pos samples: '+str(df_train_1.shape[0]))
-class_weight = {}
-class_weight[1] = float(df_train_1.shape[0])/df_train.shape[0]
-class_weight[0] = 1.0 - class_weight[1]
-print(class_weight)
+df_train_0 = df_train[df_train["TARGET"] == 0].head(df_train_1.shape[0] * 2)
+df_train = df_train_1.append(df_train_0)
+
 
 df_target = df_train['TARGET']
 df_train = df_train.drop(['TARGET', 'ID'], axis=1)
@@ -156,8 +138,8 @@ Adding balanced samples, # of 0 is 1.5 * # of 1,
 grid search the best layer and node:
 it says 3 layers with 500 nodes per layer
 '''
-n_nodes_list = [30, 50, 70, 100]
-n_layers_list = [2, 3, 4]
+n_nodes_list = [150, 200, 300, 500, 700]
+n_layers_list = [2, 3]
 '''
 4/23:
 Then let's tune dropout and learning rate
@@ -174,60 +156,22 @@ SEED = 39
 print(X_train.shape)
 print(y_train.shape)
 
-# model = Sequential()
-# model.add(Dense(1264, input_shape=(X_train.shape[1],), activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1, activation='sigmoid'))
+model = Sequential()
+model.add(Dense(500, input_shape=(X_train.shape[1],), activation='sigmoid'))
+model.add(Dropout(0.25))
+model.add(Dense(500, activation='sigmoid'))
+model.add(Dropout(0.25))
+model.add(Dense(500, activation='sigmoid'))
+model.add(Dropout(0.25))
+model.add(Dense(1, activation='sigmoid'))
 
-result = {}
+nb_epoch = 1500
+opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+model.compile(loss='binary_crossentropy', optimizer=opt)
 
-for n_layer in n_layers_list:
-    for n_node in n_nodes_list:
-        model = Sequential()
-        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='sigmoid'))
-        model.add(Dropout(0.5))
-        for i in range(0, n_layer - 1):
-            model.add(Dense(n_node, activation='sigmoid'))
-            model.add(Dropout(0.5))
-
-        model.add(Dense(1, activation='sigmoid'))
-        nb_epoch = 30
-        opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-        model.compile(loss='binary_crossentropy', optimizer=opt)
-
-        current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
-        result[(n_layer, n_node)] = current_auc
-
-# for dropout in dropout_list:
-#     for learning_rate in lr_list:
-#         model = Sequential()
-#         model.add(Dense(500, input_shape=(X_train.shape[1],), activation='sigmoid'))
-#         model.add(Dropout(dropout))
-#         for i in range(0, 2):
-#             model.add(Dense(500, activation='sigmoid'))
-#             model.add(Dropout(dropout))
-
-#         model.add(Dense(1, activation='sigmoid'))
-#         nb_epoch = 100
-#         opt = SGD(lr=learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
-#         model.compile(loss='binary_crossentropy', optimizer=opt)
-
-#         current_auc = cv_auc(model, nb_epoch, X_train, y_train, N_cv, SEED = 39)
-#         result[(dropout, learning_rate)] = current_auc
-
-
-sorted_result = sorted(result.items(), key = operator.itemgetter(1))
-good_results = sorted_result[-10:]
-with open('layer_nodes_nn_tillconverge.txt', 'w') as f:
-    f.write(str(good_results))
+print('AUC on training set is: ' + str(cv_auc(model, nb_epoch, X_train, y_train, N_cv, SEED=39)))
+print('start fitting on whole training sample')
+model.fit(X_train, y_train, nb_epoch=nb_epoch, verbose = 0)
 
 #TODO: tuning params, lose function
 # nb_epoch = 30
@@ -236,7 +180,7 @@ with open('layer_nodes_nn_tillconverge.txt', 'w') as f:
 
 
 
-# y_pred = model.predict_proba(X_test)
-# submission = pd.DataFrame({'ID': ID_test, 'TARGET': y_pred[:, -1]})
-# submission.to_csv(filename, index=False)
-# print 'Wrote %s' % filename
+y_pred = model.predict_proba(X_test)
+submission = pd.DataFrame({'ID': ID_test, 'TARGET': y_pred[:, -1]})
+submission.to_csv(filename, index=False)
+print 'Wrote %s' % filename
