@@ -156,8 +156,8 @@ Adding balanced samples, # of 0 is 1.5 * # of 1,
 grid search the best layer and node:
 it says 3 layers with 500 nodes per layer
 '''
-n_nodes_list = [30, 50, 70, 100]
-n_layers_list = [2, 3, 4]
+n_nodes_list = [90, 100, 150, 200, 300]
+n_layers_list = [3]
 '''
 4/23:
 Then let's tune dropout and learning rate
@@ -196,7 +196,7 @@ for n_layer in n_layers_list:
         model.add(Dropout(0.5))
         for i in range(0, n_layer - 1):
             model.add(Dense(n_node, activation='sigmoid', 
-                activity_regularizer = activity_l1l2(1e-4, 1e-4)))
+                activity_regularizer = activity_l1l2(0, 0)))
             model.add(Dropout(0.5))
 
         model.add(Dense(1, activation='sigmoid'))
@@ -226,8 +226,8 @@ for n_layer in n_layers_list:
 
 
 sorted_result = sorted(result.items(), key = operator.itemgetter(1))
-good_results = sorted_result[-10:]
-with open('layer_nodes_nn_regular.txt', 'w') as f:
+good_results = sorted_result
+with open('layer_nodes_nn_tillconverge_2.txt', 'w') as f:
     f.write(str(good_results))
 
 #TODO: tuning params, lose function
