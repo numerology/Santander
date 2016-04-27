@@ -156,12 +156,17 @@ Adding balanced samples, # of 0 is 1.5 * # of 1,
 grid search the best layer and node:
 it says 3 layers with 500 nodes per layer
 '''
-n_nodes_list = [90, 100, 150, 200, 300]
-n_layers_list = [3]
+n_nodes_list = [100, 40, 60,80,120]
+n_layers_list = [2, 3]
 '''
 4/23:
 Then let's tune dropout and learning rate
 both take 0.1
+4/24:
+Best combination turns out to be 3 layers with each layer 100 nodes, giving 0.807
+4/26:
+chaging activation to relu but keep the last layer as sigmoid boost the preformance to around 0.828
+still 3 layers with 100 nodes per layer
 '''
 lr_list = [0.01, 0.05, 0.1, 0.2, 0.4]
 dropout_list = [0.1, 0.15, 0.25, 0.4, 0.6]
@@ -192,11 +197,10 @@ result = {}
 for n_layer in n_layers_list:
     for n_node in n_nodes_list:
         model = Sequential()
-        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='sigmoid'))
+        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='relu'))
         model.add(Dropout(0.5))
         for i in range(0, n_layer - 1):
-            model.add(Dense(n_node, activation='sigmoid', 
-                activity_regularizer = activity_l1l2(0, 0)))
+            model.add(Dense(n_node, activation='relu'))
             model.add(Dropout(0.5))
 
         model.add(Dense(1, activation='sigmoid'))
@@ -227,7 +231,7 @@ for n_layer in n_layers_list:
 
 sorted_result = sorted(result.items(), key = operator.itemgetter(1))
 good_results = sorted_result
-with open('layer_nodes_nn_tillconverge_2.txt', 'w') as f:
+with open('layer_nodes_nn_tillconverge_23layer_regu.txt', 'w') as f:
     f.write(str(good_results))
 
 #TODO: tuning params, lose function
