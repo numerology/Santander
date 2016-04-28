@@ -451,15 +451,18 @@ def main():
             es = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
             model_nn.fit(X_train_nn, y_train, nb_epoch=2000, shuffle = True, verbose = 1,
                 callbacks = [es], validation_split = 0.25, class_weight = class_weight)
+            preds_nn_train = model_nn.predict_proba(X_train_nn) #used in stacking
             preds_nn = model_nn.predict_proba(X_test_nn)
 
             model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
             model_gbm_ada.fit(X_train_gbm, y_train)
             preds_gbm_ada = model_gbm_ada.predict_proba(X_test_gbm)[:, 1]
+            preds_gbm_ada_train = model_gbm_ada.predict_proba(X_train_gbm)[:, 1]
 
             model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
             model_gbm_ber.fit(X_train_gbm, y_train)
             preds_gbm_ber = model_gbm_ber.predict_proba(X_test_gbm)[:, 1]
+            preds_gbm_ber_train = model_gbm_ber.predict_proba(X_train_gbm)[:, 1]
 
             #xgboost, xgb in itself is using some magical way to run fitting 5 times and take geomean
             #but here let's first run just for once
@@ -478,7 +481,9 @@ def main():
 
             xgbKfold = StratifiedKFold(y_train, n_folds=xgb_subsplit, shuffle=False, random_state=42)
             dcv = xgb.DMatrix(X_test_xgb, silent = True)
+            dFullTrain = xgb.DMatrix(X_train_xgb, silent = True)
             xgb_preds = None
+            xgb_preds_train = None
             index = 0
             for xgb_train_index, xgb_test_index in xgbKfold:
                 visibletrain = X_train_xgb[xgb_train_index, :]
@@ -498,16 +503,23 @@ def main():
                 current_preds_xgb = model_xgb.predict(dcv)
                 if(xgb_preds is None):
                     xgb_preds = current_preds_xgb
+                    xgb_preds_train = model_xgb.predict(dFullTrain)
                 else:
                     xgb_preds *= current_preds_xgb
+                    xgb_preds_train *= model_xgb.predict(dFullTrain)
                 index += 1
 
             preds_xgb = np.power(xgb_preds, 1./index)
+            preds_xgb_train = np.power(xgb_preds_train, 1./index)
 
             np.save('result/preds_nn', preds_nn)
             np.save('result/preds_gbm_ada', preds_gbm_ada)
             np.save('result/preds_gbm_ber', preds_gbm_ber)
             np.save('result/preds_xgb', preds_xgb)
+            np.save('result/preds_nn_train', preds_nn_train)
+            np.save('result/preds_gbm_ada_train', preds_gbm_ada_train)
+            np.save('result/preds_gbm_ber_train', preds_gbm_ber_train)
+            np.save('result/preds_xgb_train', preds_xgb_train)
 
             cpreds_nn = np.power(preds_nn, weight1)
             cpreds_gbm_ada = np.power(preds_gbm_ada, weight2)
