@@ -94,40 +94,40 @@ CORRELATED_COLUMNS = [
     'num_trasp_var33_out_ult1', 'delta_num_venta_var44_1y3'
 ]
 
-filename = 'submission_nn.csv'
+# filename = 'submission_nn.csv'
 
-pipeline = Pipeline([
-    ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS)),
-    ('std', StandardScaler())
-])
+# pipeline = Pipeline([
+#     ('cd', ColumnDropper(drop=ZERO_VARIANCE_COLUMNS+CORRELATED_COLUMNS)),
+#     ('std', StandardScaler())
+# ])
 
-df_train = pd.read_csv('data/train.csv')
-df_train_1 = df_train[df_train["TARGET"] == 1]
-print('pos samples: '+str(df_train_1.shape[0]))
-class_weight = {}
-class_weight[1] = float(df_train_1.shape[0])/df_train.shape[0]
-class_weight[0] = 1.0 - class_weight[1]
-print(class_weight)
+# df_train = pd.read_csv('data/train.csv')
+# df_train_1 = df_train[df_train["TARGET"] == 1]
+# print('pos samples: '+str(df_train_1.shape[0]))
+# class_weight = {}
+# class_weight[1] = float(df_train_1.shape[0])/df_train.shape[0]
+# class_weight[0] = 1.0 - class_weight[1]
+# print(class_weight)
 
-df_target = df_train['TARGET']
-df_train = df_train.drop(['TARGET', 'ID'], axis=1)
-X = df_train.as_matrix()
-df_train['n0'] = (X == 0).sum(axis = 1)
-df_train['var38mc'] = np.isclose(df_train.var38, 117310.979016)
-df_train['logvar38'] = df_train.loc[~df_train['var38mc'], 'var38'].map(np.log)
-df_train.loc[df_train['var38mc'], 'logvar38'] = 0
-pipeline = pipeline.fit(df_train)
-X_train = pipeline.transform(df_train)
-print(X_train.shape)
-y_train = df_target
+# df_target = df_train['TARGET']
+# df_train = df_train.drop(['TARGET', 'ID'], axis=1)
+# X = df_train.as_matrix()
+# df_train['n0'] = (X == 0).sum(axis = 1)
+# df_train['var38mc'] = np.isclose(df_train.var38, 117310.979016)
+# df_train['logvar38'] = df_train.loc[~df_train['var38mc'], 'var38'].map(np.log)
+# df_train.loc[df_train['var38mc'], 'logvar38'] = 0
+# pipeline = pipeline.fit(df_train)
+# X_train = pipeline.transform(df_train)
+# print(X_train.shape)
+# y_train = df_target
 
 
 
-df_test = pd.read_csv('data/test.csv')
-df_id = df_test['ID']
-df_test = df_test.drop(['ID'], axis=1)
-#X_test = pipeline.transform(df_test)
-ID_test = df_id
+# df_test = pd.read_csv('data/test.csv')
+# df_id = df_test['ID']
+# df_test = df_test.drop(['ID'], axis=1)
+# #X_test = pipeline.transform(df_test)
+# ID_test = df_id
 
 #TODO: Try different activation function: relu and else
 '''
@@ -180,20 +180,20 @@ N_cv = 5
 
 SEED = 39
 
-print(X_train.shape)
-print(y_train.shape)
+# print(X_train.shape)
+# print(y_train.shape)
 
-model = Sequential()
-model.add(Dense(100, input_shape=(X_train.shape[1],), activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(100, activation='relu'))
-model.add(Dropout(0.5))
+# model = Sequential()
+# model.add(Dense(100, input_shape=(X_train.shape[1],), activation='relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(100, activation='relu'))
+# model.add(Dropout(0.5))
 
-model.add(Dense(1, activation='sigmoid'))
-opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss = 'binary_crossentropy', optimizer = opt)
-current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
-print('AUC is: ' + str(current_auc))
+# model.add(Dense(1, activation='sigmoid'))
+# opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+# model.compile(loss = 'binary_crossentropy', optimizer = opt)
+#current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
+#print('AUC is: ' + str(current_auc))
 
 '''
 4/27:
