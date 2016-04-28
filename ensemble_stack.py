@@ -135,10 +135,10 @@ def main():
 
         df_train = pd.read_csv('data/train.csv')
         df_test = pd.read_csv('data/test.csv')
-        negative_pos = np.logical_or(df_test.loc['var15']<23, df_test.loc['saldo_medio_var5_hace2'] > 160000)
-        negative_pos = np.logical_or(negative_pos, df_test.loc['saldo_var33'] > 0)
-        negative_pos = np.logical_or(negative_pos, df_test.loc['var38'] > 3988596)
-        negative_pos = np.logical_or(negative_pos, df_test.loc['V21'] > 7500)
+        negative_pos = np.logical_or(df_test['var15']<23, df_test['saldo_medio_var5_hace2'] > 160000)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_var33'] > 0)
+        negative_pos = np.logical_or(negative_pos, df_test['var38'] > 3988596)
+      #  negative_pos = np.logical_or(negative_pos, df_test['V21'] > 7500)
         test_id = df_test.ID
 
 
