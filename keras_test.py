@@ -12,6 +12,7 @@ env: GPU: NVidia GTX 970, Cuda 7.0, cuDNN 4.0
 CPU: i7-6700 3.4GHz
 '''
 import pandas as pd
+import numpy as np
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
@@ -101,7 +102,6 @@ pipeline = Pipeline([
 ])
 
 df_train = pd.read_csv('data/train.csv')
-# Even out the targets
 df_train_1 = df_train[df_train["TARGET"] == 1]
 print('pos samples: '+str(df_train_1.shape[0]))
 class_weight = {}
@@ -111,7 +111,11 @@ print(class_weight)
 
 df_target = df_train['TARGET']
 df_train = df_train.drop(['TARGET', 'ID'], axis=1)
-
+X = df_train.as_matrix()
+df_train['n0'] = (X == 0).sum(axis = 1)
+df_train['var38mc'] = np.isclose(df_train.var38, 117310.979016)
+df_train['logvar38'] = df_train.loc[~df_train['var38mc'], 'var38'].map(np.log)
+df_train.loc[df_train['var38mc'], 'logvar38'] = 0
 pipeline = pipeline.fit(df_train)
 X_train = pipeline.transform(df_train)
 print(X_train.shape)
@@ -122,7 +126,7 @@ y_train = df_target
 df_test = pd.read_csv('data/test.csv')
 df_id = df_test['ID']
 df_test = df_test.drop(['ID'], axis=1)
-X_test = pipeline.transform(df_test)
+#X_test = pipeline.transform(df_test)
 ID_test = df_id
 
 #TODO: Try different activation function: relu and else
@@ -179,37 +183,42 @@ SEED = 39
 print(X_train.shape)
 print(y_train.shape)
 
-# model = Sequential()
-# model.add(Dense(1264, input_shape=(X_train.shape[1],), activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1264, activation='sigmoid'))
-# model.add(Dropout(0.25))
-# model.add(Dense(1, activation='sigmoid'))
+model = Sequential()
+model.add(Dense(100, input_shape=(X_train.shape[1],), activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(100, activation='relu'))
+model.add(Dropout(0.5))
+
+model.add(Dense(1, activation='sigmoid'))
+opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+model.compile(loss = 'binary_crossentropy', optimizer = opt)
+current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
+print('AUC is: ' + str(current_auc))
+
+'''
+4/27:
+Without adding additional features: auc 0.82826
+With additional features auc 0.82800
+'''
 
 result = {}
 
-for n_layer in n_layers_list:
-    for n_node in n_nodes_list:
-        model = Sequential()
-        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='relu'))
-        model.add(Dropout(0.5))
-        for i in range(0, n_layer - 1):
-            model.add(Dense(n_node, activation='relu'))
-            model.add(Dropout(0.5))
+# for n_layer in n_layers_list:
+#     for n_node in n_nodes_list:
+#         model = Sequential()
+#         model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='relu'))
+#         model.add(Dropout(0.5))
+#         for i in range(0, n_layer - 1):
+#             model.add(Dense(n_node, activation='relu'))
+#             model.add(Dropout(0.5))
 
-        model.add(Dense(1, activation='sigmoid'))
-        nb_epoch = 30
-        opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-        model.compile(loss='binary_crossentropy', optimizer=opt)
+#         model.add(Dense(1, activation='sigmoid'))
+#         nb_epoch = 30
+#         opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+#         model.compile(loss='binary_crossentropy', optimizer=opt)
 
-        current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
-        result[(n_layer, n_node)] = current_auc
+#         current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
+#         result[(n_layer, n_node)] = current_auc
 
 # for dropout in dropout_list:
 #     for learning_rate in lr_list:
@@ -229,10 +238,10 @@ for n_layer in n_layers_list:
 #         result[(dropout, learning_rate)] = current_auc
 
 
-sorted_result = sorted(result.items(), key = operator.itemgetter(1))
-good_results = sorted_result
-with open('layer_nodes_nn_tillconverge_23layer_regu.txt', 'w') as f:
-    f.write(str(good_results))
+# sorted_result = sorted(result.items(), key = operator.itemgetter(1))
+# good_results = sorted_result
+# with open('layer_nodes_nn_tillconverge_23layer_regu.txt', 'w') as f:
+#     f.write(str(good_results))
 
 #TODO: tuning params, lose function
 # nb_epoch = 30

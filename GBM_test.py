@@ -68,7 +68,7 @@ Xtest.insert(1, 'PCATwo', x_test_projected[:, 1])
 y = train_df.TARGET.values
 
 
-
+#exponential: adaboost, deviance: bernoulli
 clfs = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=20, random_state=39)
 
 

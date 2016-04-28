@@ -19,11 +19,24 @@ We do gridsearch for the best weights.
 
 
 import numpy as np
+import pandas as pd
 import operator
+import util
 from sklearn.metrics import roc_auc_score
 from sklearn.cross_validation import StratifiedKFold
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.pipeline import Pipeline
 from sklearn.externals import joblib
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import SelectKBest, f_classif
+
+from keras.models import Sequential
+from keras.layers import Dense, Dropout
+from keras.optimizers import SGD
+from keras.callbacks import EarlyStopping
+import keras_test
+
+import xgboost as xgb
 
 """
 Script to do the final ensemble via geomean-rank-weighted-averaging
@@ -105,15 +118,215 @@ def save_results(predictions, filename):
 def main():
 
         # meta models to be used to assess how much weight to contribute to the final submission
-        meta=["main_xgboost",
-        "main_logit_2way",
-        "main_logit_3way",
-        "main_logit_3way_best",
-        "main_xgboos_count",
-        "main_xgboos_count_2D",
-        "main_xgboos_count_3D"]
+        '''
+        4 models:
+        xgboost, nn(keras), gbm_adaboost, gbm_bernoulli
+        '''
+        N_fold = 5
+        SEED = 39
 
-        y = np.loadtxt("train.csv", delimiter=',',usecols=[0], skiprows=1)
+        Load = False
+
+        df_train = pd.read_csv('data/train.csv')
+        #prepare data for nn
+        df_train_1 = df_train[df_train["TARGET"] == 1]
+        print('pos samples: '+str(df_train_1.shape[0]))
+        class_weight = {}
+        class_weight[1] = float(df_train_1.shape[0])/df_train.shape[0]
+        class_weight[0] = 1.0 - class_weight[1]
+        print(class_weight)
+
+        if(not Load):
+            
+
+            pipeline = Pipeline([
+                ('cd',keras_test.ColumnDropper(drop=keras_test.ZERO_VARIANCE_COLUMNS+keras_test.CORRELATED_COLUMNS)),
+                ('std', StandardScaler())
+            ])
+
+            df_target = df_train['TARGET']
+            df_train = df_train.drop(['TARGET', 'ID'], axis=1)
+
+            pipeline = pipeline.fit(df_train)
+            X_train_nn = pipeline.transform(df_train)
+            print('number of samples: ' + str(X_train.shape))
+            y_train = df_target
+
+
+            #prepare data for gbm
+            remove = []
+            for col in df_train.columns:
+                if(df_train[col].std() == 0):
+                    remove.append(col)
+            df_train.drop(remove, axis = 1, inplace = True)
+
+            remove = []
+            cols = df_train.columns
+            for i in range(len(cols) - 1):
+                v = df_train[cols[i]].values
+                for j in range(i + 1, len(cols)):
+                    if np.array_equal(v, df_train[cols[j]].values):
+                        remove.append(cols[j])
+            df_train.drop(remove, axis = 1, inplace = True)
+
+
+            df_train_gbm = df_train.replace(-999999, 2)
+            X = df_train.as_matrix()
+            df_train_gbm['n0'] = (X == 0).sum(axis = 1)
+            df_train_gbm['var38mc'] = np.isclose(df_train_gbm.var38, 117310.979016)
+            df_train_gbm['logvar38'] = df_train_gbm.loc[~df_train_gbm['var38mc'], 'var38'].map(np.log)
+            df_train_gbm.loc[df_train_gbm['var38mc'], 'logvar38'] = 0
+                       
+            pca = PCA(n_components=2)
+            X_train_gbm = df_train_gbm
+            x_train_projected = pca.fit_transform(normalize(X, axis=0))
+            X_train_gbm.insert(1, 'PCAOne', x_train_projected[:, 0])
+            X_train_gbm.insert(1, 'PCATwo', x_train_projected[:, 1])
+
+            X_train_xgb = X_train_gbm.copy()
+
+            selectK = SelectKBest(f_classif, k=90)
+            selectK.fit(X_train_gbm, y_train)
+            X_train_gbm = selectK.transform(X_train_gbm)
+            
+
+            #prepare data for xgboost
+            tokeep = ['num_var39_0',  # 0.00031104199066874026
+              'ind_var13',  # 0.00031104199066874026
+              'num_op_var41_comer_ult3',  # 0.00031104199066874026
+              'num_var43_recib_ult1',  # 0.00031104199066874026
+              'imp_op_var41_comer_ult3',  # 0.00031104199066874026
+              'num_var8',  # 0.00031104199066874026
+              'num_var42',  # 0.00031104199066874026
+              'num_var30',  # 0.00031104199066874026
+              'saldo_var8',  # 0.00031104199066874026
+              'num_op_var39_efect_ult3',  # 0.00031104199066874026
+              'num_op_var39_comer_ult3',  # 0.00031104199066874026
+              'num_var41_0',  # 0.0006220839813374805
+              'num_op_var39_ult3',  # 0.0006220839813374805
+              'saldo_var13',  # 0.0009331259720062209
+              'num_var30_0',  # 0.0009331259720062209
+              'ind_var37_cte',  # 0.0009331259720062209
+              'ind_var39_0',  # 0.001244167962674961
+              'num_var5',  # 0.0015552099533437014
+              'ind_var10_ult1',  # 0.0015552099533437014
+              'num_op_var39_hace2',  # 0.0018662519440124418
+              'num_var22_hace2',  # 0.0018662519440124418
+              'num_var35',  # 0.0018662519440124418
+              'ind_var30',  # 0.0018662519440124418
+              'num_med_var22_ult3',  # 0.002177293934681182
+              'imp_op_var41_efect_ult1',  # 0.002488335925349922
+              'var36',  # 0.0027993779160186624
+              'num_med_var45_ult3',  # 0.003110419906687403
+              'imp_op_var39_ult1',  # 0.0037325038880248835
+              'imp_op_var39_comer_ult3',  # 0.0037325038880248835
+              'imp_trans_var37_ult1',  # 0.004043545878693624
+              'num_var5_0',  # 0.004043545878693624
+              'num_var45_ult1',  # 0.004665629860031105
+              'ind_var41_0',  # 0.0052877138413685845
+              'imp_op_var41_ult1',  # 0.0052877138413685845
+              'num_var8_0',  # 0.005598755832037325
+              'imp_op_var41_efect_ult3',  # 0.007153965785381027
+              'num_op_var41_ult3',  # 0.007153965785381027
+              'num_var22_hace3',  # 0.008087091757387248
+              'num_var4',  # 0.008087091757387248
+              'imp_op_var39_comer_ult1',  # 0.008398133748055987
+              'num_var45_ult3',  # 0.008709175738724729
+              'ind_var5',  # 0.009953343701399688
+              'imp_op_var39_efect_ult3',  # 0.009953343701399688
+              'num_meses_var5_ult3',  # 0.009953343701399688
+              'saldo_var42',  # 0.01181959564541213
+              'imp_op_var39_efect_ult1',  # 0.013374805598755831
+              'PCATwo',  # 0.013996889580093312
+              'num_var45_hace2',  # 0.014618973561430793
+              'num_var22_ult1',  # 0.017107309486780714
+              'saldo_medio_var5_ult1',  # 0.017418351477449457
+              'PCAOne',  # 0.018040435458786936
+              'saldo_var5',  # 0.0208398133748056
+              'ind_var8_0',  # 0.021150855365474338
+              'ind_var5_0',  # 0.02177293934681182
+              'num_meses_var39_vig_ult3',  # 0.024572317262830483
+              'saldo_medio_var5_ult3',  # 0.024883359253499222
+              'num_var45_hace3',  # 0.026749611197511663
+              'num_var22_ult3',  # 0.03452566096423017
+              'saldo_medio_var5_hace3',  # 0.04074650077760498
+              'saldo_medio_var5_hace2',  # 0.04292379471228616
+              'SumZeros',  # 0.04696734059097978
+              'saldo_var30',  # 0.09611197511664074
+              'var38',  # 0.1390357698289269
+              'var15']  # 0.20964230171073095
+            features = X_train_gbm.columns
+            todrop = list(set(tokeep).difference(set(features)))
+            X_train_xgb.drop(todrop, inplace=True, axis=1)
+
+            util.save_obj('data/X_train_nn.pkl', X_train_nn)
+            util.save_obj('data/X_train_gbm.pkl', X_train_gbm)
+            util.save_obj('data/X_train_xgb.pkl', X_train_xgb)
+            util.save_obj('data/y_train.pkl', y_train)
+
+        else:
+            X_train_nn = util.load_obj('data/X_train_nn.pkl')
+            X_train_gbm = util.load_obj('data/X_train_gbm.pkl')
+            X_train_xgb = util.load_obj('data/X_train_xgb.pkl')
+            y_train = util.load_obj('data/y_train.pkl')
+
+
+        kfolder=StratifiedKFold(y_train, n_folds=N_fold, shuffle=True, random_state=SEED)
+        for train_index, test_index in kfolder:
+            # creaning and validation sets
+            X_nn_train, X_nn_cv = X_train_nn[train_index], X_train_nn[test_index]
+            X_gbm_train, X_gbm_cv = X_train_gbm[train_index], X_train_gbm[test_index]
+            X_xgb_train, X_xgb_cv = X_train_xgb[train_index], X_train_xgb[test_index]
+            y_train_cv, y_cv = y_train[train_index], y_train[test_index]
+            print (" train size: %d. test size: %d, cols: %d " % ((X_nn_train.shape[0]) ,(X_nn_cv.shape[0]) ,(X_nn_train.shape[1]) ))
+
+            #fitting
+            model_nn = Sequential()
+            model_nn.add(Dense(100, input_shape=(X_nn_train.shape[1],), activation='relu'))
+            model_nn.add(Dropout(0.5))
+            model_nn.add(Dense(100, activation='relu'))
+            model_nn.add(Dropout(0.5))
+            model_nn.add(Dense(1, activation='sigmoid'))
+            opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+            model_nn.compile(loss = 'binary_crossentropy', optimizer = opt)
+            es = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
+            model_nn.fit(X_nn_train, y_train_cv, nb_epoch=2000, shuffle = True, verbose = 1, 
+                callbacks = [es], validation_split = 0.25, class_weight = class_weight)
+            preds_nn = model.predict_proba(X_nn_cv)
+
+            model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
+            model_gbm_ada.fit(X_gbm_train, y_train_cv)
+            preds_gbm_ada = model_gbm_ada.predict_proba(X_gbm_cv)[:, 1]
+
+            model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
+            model_gbm_ber.fit(X_gbm_train, y_train_cv)
+            preds_gbm_ber = model_gbm_ber.predict_proba(X_gbm_cv)[:, 1]
+
+            #xgboost, xgb in itself is using some magical way to run fitting 5 times and take geomean
+            features = X_xgb_train.columns[1:-1]
+            num_rounds = 10
+            dvisibletrain = xgb.DMatrix(csr_matrix(X_xgb_train),
+                        label = y_train_cv,
+                        silent=True)
+            dblindtrain = xgb.DMatrix(csr_matrix(X_xgb_cv),
+                        blindtrain.TARGET.values,
+                        silent=True)
+            params = {}
+            params["objective"] = "binary:logistic"
+            params["eta"] = 0.03
+            params["subsample"] = 0.8
+            params["colsample_bytree"] = 0.7
+            params["silent"] = 1
+            params["max_depth"] = 5
+            params["min_child_weight"] = 1
+            params["eval_metric"] = "auc"
+
+            watchlist = [(dblindtrain, 'eval'), (dvisibletrain, 'train')]
+            model_xgb = xgb.train(params, dvisibletrain, num_rounds,
+                        evals=watchlist, early_stopping_rounds=50,
+                        verbose_eval=False)
+
+
 
 
         print("len of target=%d" % (len(y))) # reconciliation check
