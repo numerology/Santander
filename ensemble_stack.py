@@ -109,10 +109,15 @@ def main():
             for modelname in meta :
                     mini_xtrain=np.load('result/preds_' + modelname + '_train.npy') # we load the held out prediction of the int'train.csv' model
                     mini_xtest=np.load('result/preds_' + modelname + '.npy')   # we load the test set prediction of the int'test.csv' model
+                    if('modelname' == 'nn'):
+                        mini_xtrain = mini_xtrain[:,0]
+                        mini_xtest= mini_xtest[:,0]
+                        
                     mean_train=np.mean(mini_xtrain) # we calclaute the mean of the train set held out predictions for reconciliation purposes
                     mean_test=np.mean(mini_xtest)    # we calclaute the mean of the test set  predictions
                     # we print the AUC and the means and we still hope that everything makes sense. Eg. the mean of the train set preds is 1232314.34 and the test is 0.7, there is something wrong...
-                    print("model %s auc %f" % modelname,roc_auc_score(np.array(y),mini_xtrain))
+                    if('modelname' == 'nn'):
+                    print("model" + str(modelname) + 'auc:' + str(roc_auc_score(np.array(y),mini_xtrain)))
                     if Xmetatrain==None:
                         Xmetatrain=mini_xtrain
                         Xmetatest=mini_xtest
