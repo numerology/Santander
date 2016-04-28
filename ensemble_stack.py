@@ -327,7 +327,7 @@ def main():
             model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
             model_gbm_ber.fit(X_gbm_train, y_train_cv)
             preds_gbm_ber = model_gbm_ber.predict_proba(X_gbm_cv)[:, 1]
-            preds_gbm_ber_list.appends(preds_gbm_ber)
+            preds_gbm_ber_list.append(preds_gbm_ber)
 
             #xgboost, xgb in itself is using some magical way to run fitting 5 times and take geomean
             #but here let's first run just for once
