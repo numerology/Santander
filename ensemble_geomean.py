@@ -283,11 +283,11 @@ def main():
             y_train = np.load('data/y_train.npy')
 
 
-        kfolder=StratifiedKFold(y_train, n_folds=N_fold, shuffle=True, random_state=SEED)
+        kfolder=StratifiedKFold(y_train, n_folds=N_fold, shuffle=False, random_state=SEED)
         i = 0
         mean_auc = 0.
         print('label shape' + str(y_train.shape))
-
+        xgb_subsplit = 10
         for train_index, test_index in kfolder:
             # creaning and validation sets
             X_nn_train, X_nn_cv = X_train_nn[train_index, :], X_train_nn[test_index, :]
@@ -306,28 +306,23 @@ def main():
             opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
             model_nn.compile(loss = 'binary_crossentropy', optimizer = opt)
             es = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
-            model_nn.fit(X_nn_train, y_train_cv, nb_epoch=2000, shuffle = True, verbose = 1, 
+            model_nn.fit(X_nn_train, y_train_cv, nb_epoch=2, shuffle = True, verbose = 1,
                 callbacks = [es], validation_split = 0.25, class_weight = class_weight)
             preds_nn = model_nn.predict_proba(X_nn_cv)
 
-            model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
+            model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
             model_gbm_ada.fit(X_gbm_train, y_train_cv)
             preds_gbm_ada = model_gbm_ada.predict_proba(X_gbm_cv)[:, 1]
 
-            model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
+            model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
             model_gbm_ber.fit(X_gbm_train, y_train_cv)
             preds_gbm_ber = model_gbm_ber.predict_proba(X_gbm_cv)[:, 1]
 
             #xgboost, xgb in itself is using some magical way to run fitting 5 times and take geomean
             #but here let's first run just for once
             
-            num_rounds = 350
-            dvisibletrain = xgb.DMatrix(X_xgb_train,
-                        label = y_train_cv,
-                        silent=True)
-            dblindtrain = xgb.DMatrix(X_xgb_cv,
-                        label = y_cv,
-                        silent=True)
+            num_rounds = 10
+
             params = {}
             params["objective"] = "binary:logistic"
             params["eta"] = 0.03
@@ -338,25 +333,40 @@ def main():
             params["min_child_weight"] = 1
             params["eval_metric"] = "auc"
 
-            watchlist = [(dblindtrain, 'eval'), (dvisibletrain, 'train')]
-            model_xgb = xgb.train(params, dvisibletrain, num_rounds,
-                        evals=watchlist, early_stopping_rounds=50,
-                        verbose_eval=False)
-            preds_xgb = model_xgb.predict(dblindtrain)
-            # print(preds_nn.shape)
-            # print(preds_gbm_ada.shape)
-            # print(preds_gbm_ber.shape)
-            # print(preds_xgb.shape)
+            xgbKfold = StratifiedKFold(y_train_cv, n_folds=xgb_subsplit, shuffle=False, random_state=42)
+            dcv = xgb.Dmatrix(X_xgb_cv, silent = True)
+            xgb_preds = None
+            index = 0
+            for xgb_train_index, xgb_test_index in xgbKfold:
+                visibletrain = X_xgb_train[xgb_train_index, :]
+                blindtrain = X_xgb_train[xgb_test_index, :]
+                y_visibletrain, y_blindtrain = y_train_cv[xgb_train_index], y_train_cv[xgb_test_index]
+                dvisibletrain = xgb.DMatrix(visibletrain,
+                            label = y_visibletrain,
+                            silent=True)
+                dblindtrain = xgb.DMatrix(blindtrain,
+                            label = y_blindtrain,
+                            silent=True)
+
+                watchlist = [(dblindtrain, 'eval'), (dvisibletrain, 'train')]
+                model_xgb = xgb.train(params, dvisibletrain, num_rounds,
+                            evals=watchlist, early_stopping_rounds=50,
+                            verbose_eval=False)
+                current_preds_xgb = model_xgb.predict(dcv)
+                if(xgb_preds is None):
+                    xgb_preds = current_preds_xgb
+                else:
+                    xgb_preds *= current_preds_xgb
+                index += 1
+
+            preds_xgb = np.power(xgb_preds, 1./index)
+
 
             weight = [0.25, 0.25, 0.25, 0.25]
             preds_nn = np.power(preds_nn, weight[0])
             preds_gbm_ada = np.power(preds_gbm_ber, weight[1])
             preds_gbm_ber = np.power(preds_gbm_ber, weight[2])
             preds_xgb = np.power(preds_xgb, weight[3])
-            # print(preds_nn.shape)
-            # print(preds_gbm_ada.shape)
-            # print(preds_gbm_ber.shape)
-            # print(preds_xgb.shape)
 
             preds = np.multiply(np.multiply(np.multiply(preds_nn[:,0], preds_gbm_ada), preds_gbm_ber), preds_xgb)
             print(y_cv.shape)
