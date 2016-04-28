@@ -402,5 +402,5 @@ def main():
         print(good_weights)
 
 
-
-
+if __name__=="__main__":
+  main()
