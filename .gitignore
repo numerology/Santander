@@ -4,4 +4,5 @@
 *.pyc
 .idea/
 *.xml
+*.npy
 
