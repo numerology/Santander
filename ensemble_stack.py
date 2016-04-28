@@ -1,8 +1,8 @@
 __author__ = 'Jiaxiao Zheng'
 
-'''
-Borrow code from KazAnova,
+__author__ = 'Jiaxiao Zheng'
 
+'''
 TODO:
 KazAnova directly load the results from predumped file and test different weights, which is bad.
 The reason is the predictions made on the training set is based on all samples there. In the cross-
@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import operator
 import util
+from util import frange
 from sklearn.metrics import roc_auc_score
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, normalize
@@ -141,7 +142,7 @@ def main():
         print(class_weight)
 
         if(not Load):
-            
+
 
             pipeline = Pipeline([
                 ('cd',keras_test.ColumnDropper(drop=keras_test.ZERO_VARIANCE_COLUMNS+keras_test.CORRELATED_COLUMNS)),
@@ -182,7 +183,7 @@ def main():
             df_train_gbm['var38mc'] = np.isclose(df_train_gbm.var38, 117310.979016)
             df_train_gbm['logvar38'] = df_train_gbm.loc[~df_train_gbm['var38mc'], 'var38'].map(np.log)
             df_train_gbm.loc[df_train_gbm['var38mc'], 'logvar38'] = 0
-                       
+
             pca = PCA(n_components=2)
             X_train_gbm = df_train_gbm
             x_train_projected = pca.fit_transform(normalize(X, axis=0))
@@ -266,7 +267,7 @@ def main():
             todrop = list(set(tokeep).difference(set(features)))
             X_train_xgb.drop(todrop, inplace=True, axis=1)
             print(X_train_xgb.shape)
-          
+
             np.save('data/X_train_xgb', X_train_xgb)
             print('finish saving xgb')
             np.save('data/y_train', y_train)
@@ -285,7 +286,13 @@ def main():
 
         kfolder=StratifiedKFold(y_train, n_folds=N_fold, shuffle=False, random_state=SEED)
         i = 0
-        mean_auc = 0.
+        preds_nn_list = []
+        preds_gbm_ada_list = []
+        preds_gbm_ber_list = []
+        preds_xgb_list = []
+
+        true_targets = []
+
         print('label shape' + str(y_train.shape))
         xgb_subsplit = 10
         for train_index, test_index in kfolder:
@@ -295,6 +302,7 @@ def main():
             X_xgb_train, X_xgb_cv = X_train_xgb[train_index, :], X_train_xgb[test_index, :]
             y_train_cv, y_cv = y_train[train_index], y_train[test_index]
             print (" train size: %d. test size: %d, cols: %d " % ((X_nn_train.shape[0]) ,(X_nn_cv.shape[0]) ,(X_nn_train.shape[1]) ))
+            true_targets.append(y_cv)
 
             #fitting
             model_nn = Sequential()
@@ -309,18 +317,21 @@ def main():
             model_nn.fit(X_nn_train, y_train_cv, nb_epoch=2, shuffle = True, verbose = 1,
                 callbacks = [es], validation_split = 0.25, class_weight = class_weight)
             preds_nn = model_nn.predict_proba(X_nn_cv)
+            preds_nn_list.append(preds_nn)
 
             model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
             model_gbm_ada.fit(X_gbm_train, y_train_cv)
             preds_gbm_ada = model_gbm_ada.predict_proba(X_gbm_cv)[:, 1]
+            preds_gbm_ada_list.append(preds_gbm_ada)
 
             model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
             model_gbm_ber.fit(X_gbm_train, y_train_cv)
             preds_gbm_ber = model_gbm_ber.predict_proba(X_gbm_cv)[:, 1]
+            preds_gbm_ber_list.appends(preds_gbm_ber)
 
             #xgboost, xgb in itself is using some magical way to run fitting 5 times and take geomean
             #but here let's first run just for once
-            
+
             num_rounds = 10
 
             params = {}
@@ -360,161 +371,36 @@ def main():
                 index += 1
 
             preds_xgb = np.power(xgb_preds, 1./index)
+            preds_xgb_list.append(preds_xgb)
 
 
-            weight = [0.25, 0.25, 0.25, 0.25]
-            preds_nn = np.power(preds_nn, weight[0])
-            preds_gbm_ada = np.power(preds_gbm_ber, weight[1])
-            preds_gbm_ber = np.power(preds_gbm_ber, weight[2])
-            preds_xgb = np.power(preds_xgb, weight[3])
+        print('Start optimizing the weight')
+        step = 0.5
+        result = {}
+        #weight = [0, 0, 0, 0]
+        for weight1 in frange(0.5, 0.95, step):
+            for weight2 in frange(0.5, 1-weight1, step):
+                for weight3 in frange(0.5, 1-weight1-weight2, step):
+                    weight4 = 1-weight1-weight2-weight3
+                    c_auc = 0.
+                    for i in range(0, N_fold):
+                        cpreds_nn = np.power(preds_nn_list[i], weight1)
+                        cpreds_gbm_ada = np.power(preds_gbm_ada_list[i], weight2)
+                        cpreds_gbm_ber = np.power(preds_gbm_ber_list[i], weight3)
+                        cpreds_xgb = np.power(preds_xgb_list[i], weight4)
+                        true_target = true_targets[i]
+                        cpreds = np.multiply(np.multiply(np.multiply(cpreds_nn[:,0], cpreds_gbm_ada), cpreds_gbm_ber), cpreds_xgb)
+                        c_auc += roc_auc_score(true_target, cpreds)
 
-            preds = np.multiply(np.multiply(np.multiply(preds_nn[:,0], preds_gbm_ada), preds_gbm_ber), preds_xgb)
-            print(y_cv.shape)
-            print(preds.shape)
-            auc = roc_auc_score(y_cv, preds)
-
-            print "AUC (fold %d/%d): %f" % (i + 1, N_fold, auc)
-            i+=1
-            mean_auc += auc
-
-        print('Final AUC is ' + str(mean_auc/N_fold))
-
-
-
-        # print("len of target=%d" % (len(y))) # reconciliation check
-        # weights=[0, # all weights to 1, e.g. average
-        #          0,
-        #          0,
-        #          0.4,
-        #          0,
-        #          0.4,
-        #          1
-        #          ]     # the weights of the 4 level 3 meta models
+                    c_auc = c_auc/N_fold
+                    result[(weight1,weight2,weight3,weight4)] = c_auc
+                    print(str((weight1,weight2,weight3,weight4)) + 'results in ' + str(c_auc))
 
 
-
-        # number_of_folds=5 # for cv
-        # usesccaling_to_0_1=True # some submissions need probas-ish
-        # use_geo=True #false = uses linear rank average
-        # Load=True
-        # use_rank=True # IF we want to use rank
-        # #basiclaly it says multiple the extra lvl3 model by 1, the xgboost model by 0.05 and the neural net with 0.25
-        # if Load:
-        #     Xmetatrain=None
-        #     Xmetatest=None
-        #     #append all the predictions into 1 list (array)
-        #     for modelname in meta :
-        #         mini_xtrain=np.loadtxt(modelname + '.train.csv')
-        #         mini_xtest=np.loadtxt(modelname + '.test.csv')
-        #         mean_train=np.mean(mini_xtrain)
-        #         mean_test=np.mean(mini_xtest)
-        #         print("model %s auc %f mean train/test %f/%f " % (modelname,roc_auc_score(y,mini_xtrain) ,mean_train,mean_test))
-        #         if Xmetatrain==None:
-        #             Xmetatrain=mini_xtrain
-        #             Xmetatest=mini_xtest
-        #         else :
-        #             Xmetatrain=np.column_stack((Xmetatrain,mini_xtrain))
-        #             Xmetatest=np.column_stack((Xmetatest,mini_xtest))
-        #     # convert my scores to list
-
-        #     X=Xmetatrain
-        #     X_test=Xmetatest
-        #     joblib.dump((X,X_test),"METADUMP.pkl" )
-        # else :
-        #     X,X_test=joblib.load("METADUMP.pkl")
-
-        # outset="AUC_Geo_Rank_Weighted_Average" # Output base name
-
-
-        # seedlist=[87, 111, 1337, 42 , 201628] # many seeds for more accurate results
-        # train_stacker=[0.0 for i in range (0,len(X))]
-        # mean_auc = 0.0
-        # for seeder in seedlist:
-        #     print("kfolding seed %d " % (seeder) )
-        #     kfolder=StratifiedKFold(y, n_folds=number_of_folds,shuffle=True, random_state=seeder)
-        #     #number_of_folds=0
-        #     #X,y=shuffle(X,y, random_state=SEED) # Shuffle since the data is ordered by time
-        #     i=0 # iterator counter
-        #     print ("starting cross validation with %d kfolds " % (number_of_folds))
-        #     if number_of_folds>0:
-        #         for train_index, test_index in kfolder:
-        #             # creaning and validation sets
-        #             X_train, X_cv = X[train_index], X[test_index]
-        #             y_train, y_cv = np.array(y)[train_index], np.array(y)[test_index]
-        #             print (" train size: %d. test size: %d, cols: %d " % ((X_train.shape[0]) ,(X_cv.shape[0]) ,(X_train.shape[1]) ))
-
-
-        #             minmax=MinMaxScaler(feature_range=(0, 1))
-        #             X_cv=X_cv.tolist()
-        #             if use_rank:
-        #                 create_ranklist(X_cv)
-
-        #             #X_cv= minmax.fit_transform((X_cv))
-        #             #print X_cv
-
-        #             if use_geo: # use geo mean
-        #                 preds=[1.0 for s in range (0,len(X_cv))]
-        #                 for i in range (0,len(X_cv)) :
-        #                     for j in range (0,len(weights)) :
-        #                         preds[i]*=X_cv[i][j]**weights[j]
-        #             else :
-        #                 preds=[0.0 for s in range (0,len(X_cv))]
-        #                 for i in range (0,len(X_cv)) :
-        #                     for j in range (0,len(weights)) :
-        #                         preds[i]+=X_cv[i][j]*weights[j]
-
-        #             if usesccaling_to_0_1:
-        #                 preds= minmax.fit_transform(preds)
-
-        #             # compute Loglikelihood metric for this CV fold
-        #             #scalepreds(preds)
-        #             AUC = roc_auc_score(y_cv,preds)
-        #             print "size train: %d  CV : %d AUC (fold %d/%d): %f" % ((X_train.shape[0]), len(X_cv), i + 1, number_of_folds, AUC)
-
-        #             mean_auc += AUC
-        #             #save the results
-        #             no=0
-        #             for real_index in test_index:
-        #                      train_stacker[real_index]=(preds[no])
-        #                      no+=1
-        #             i+=1
-
-        # mean_auc/=(len(seedlist)*5.0)
-        # print ("Average AUC: %f" % mean_auc)
-        # minmax=MinMaxScaler(feature_range=(0, 1))
-        # X_test=X_test.tolist()
-        # if use_rank:
-        #     create_ranklist(X_test)
-
-        # # combine all the ranked scores in a weighted manner for the test lvl 3 out-of-fold predictions
-
-
-        # if use_geo: # use geo mean
-        #     preds=[1.0 for s in range (0,len(X_test))]
-        #     for i in range (0,len(X_test)) :
-        #         for j in range (0,len(weights)) :
-        #             preds[i]*=X_test[i][j]**weights[j]
-        # else : # linear wighted rank average
-        #     preds=[0.0 for s in range (0,len(X_test))]
-        #     for i in range (0,len(X_test)) :
-        #         for j in range (0,len(weights)) :
-        #             preds[i]+=X_test[i][j]*weights[j]
-
-        # if usesccaling_to_0_1:
-        #     preds= minmax.fit_transform(preds)
-
-
-        # #convert to numpy
-        # preds=np.array(preds)
-        # #write the results
-
-        # save_results(preds, outset+"_submission_" +str(mean_auc) + ".csv")
-        # print("Done.")
+        sorted_result = sorted(result.items(), key = operator.itemgetter(1), reverse=True)
+        good_weights = sorted_result[0:10]
+        print(good_weights)
 
 
 
 
-
-
-if __name__=="__main__":
-  main()
