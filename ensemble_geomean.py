@@ -306,22 +306,22 @@ def main():
             opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
             model_nn.compile(loss = 'binary_crossentropy', optimizer = opt)
             es = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
-            model_nn.fit(X_nn_train, y_train_cv, nb_epoch=5, shuffle = True, verbose = 1, 
+            model_nn.fit(X_nn_train, y_train_cv, nb_epoch=2000, shuffle = True, verbose = 1, 
                 callbacks = [es], validation_split = 0.25, class_weight = class_weight)
             preds_nn = model_nn.predict_proba(X_nn_cv)
 
-            model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
+            model_gbm_ada = GradientBoostingClassifier(loss = 'exponential', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
             model_gbm_ada.fit(X_gbm_train, y_train_cv)
             preds_gbm_ada = model_gbm_ada.predict_proba(X_gbm_cv)[:, 1]
 
-            model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10, random_state=39)
+            model_gbm_ber = GradientBoostingClassifier(loss = 'deviance', learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=100, random_state=39)
             model_gbm_ber.fit(X_gbm_train, y_train_cv)
             preds_gbm_ber = model_gbm_ber.predict_proba(X_gbm_cv)[:, 1]
 
             #xgboost, xgb in itself is using some magical way to run fitting 5 times and take geomean
             #but here let's first run just for once
             
-            num_rounds = 30
+            num_rounds = 350
             dvisibletrain = xgb.DMatrix(X_xgb_train,
                         label = y_train_cv,
                         silent=True)
