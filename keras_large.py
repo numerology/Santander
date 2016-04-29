@@ -179,8 +179,8 @@ Adding balanced samples, # of 0 is 1.5 * # of 1,
 grid search the best layer and node:
 it says 3 layers with 500 nodes per layer
 '''
-n_nodes_list = [100, 40, 60,80,120]
-n_layers_list = [2, 3]
+n_nodes_list = [100,80,150, 200, 300]
+n_layers_list = [2, 3, 4]
 '''
 4/23:
 Then let's tune dropout and learning rate
@@ -222,22 +222,22 @@ With additional features auc 0.82800
 
 result = {}
 
-# for n_layer in n_layers_list:
-#     for n_node in n_nodes_list:
-#         model = Sequential()
-#         model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='relu'))
-#         model.add(Dropout(0.5))
-#         for i in range(0, n_layer - 1):
-#             model.add(Dense(n_node, activation='relu'))
-#             model.add(Dropout(0.5))
+for n_layer in n_layers_list:
+    for n_node in n_nodes_list:
+        model = Sequential()
+        model.add(Dense(n_node, input_shape=(X_train.shape[1],), activation='relu'))
+        model.add(Dropout(0.5))
+        for i in range(0, n_layer - 1):
+            model.add(Dense(n_node, activation='relu'))
+            model.add(Dropout(0.5))
 
-#         model.add(Dense(1, activation='sigmoid'))
-#         nb_epoch = 30
-#         opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-#         model.compile(loss='binary_crossentropy', optimizer=opt)
+        model.add(Dense(1, activation='sigmoid'))
+        nb_epoch = 30
+        opt = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss='binary_crossentropy', optimizer=opt)
 
-#         current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
-#         result[(n_layer, n_node)] = current_auc
+        current_auc = cv_auc(model, -1, X_train, y_train, N_cv, SEED = 39, class_weight = class_weight)
+        result[(n_layer, n_node)] = current_auc
 
 # for dropout in dropout_list:
 #     for learning_rate in lr_list:
@@ -257,10 +257,10 @@ result = {}
 #         result[(dropout, learning_rate)] = current_auc
 
 
-# sorted_result = sorted(result.items(), key = operator.itemgetter(1))
-# good_results = sorted_result
-# with open('layer_nodes_nn_tillconverge_23layer_regu.txt', 'w') as f:
-#     f.write(str(good_results))
+sorted_result = sorted(result.items(), key = operator.itemgetter(1))
+good_results = sorted_result
+with open('layer_nodes_nn_tillconverge_enlarged.txt', 'w') as f:
+    f.write(str(good_results))
 
 #TODO: tuning params, lose function
 # nb_epoch = 30
