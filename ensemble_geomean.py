@@ -135,10 +135,35 @@ def main():
 
         df_train = pd.read_csv('data/train.csv')
         df_test = pd.read_csv('data/test.csv')
+     #   df_test['nv'] = df_test['num_var33']+df_test['saldo_medio_var33_ult3']+df_test['saldo_medio_var44_hace2']+df_test['saldo_medio_var44_hace3']+ \
+     #       df_test['saldo_medio_var33_ult1']+df_test['saldo_medio_var44_ult1']
+        nv = df_test['num_var33']+df_test['saldo_medio_var33_ult3']+df_test['saldo_medio_var44_hace2']+df_test['saldo_medio_var44_hace3']+ \
+            df_test['saldo_medio_var33_ult1']+df_test['saldo_medio_var44_ult1']
+        nv2 = df_test['var15']+df_test['num_var45_hace3']+df_test['num_var45_ult3']+df_test['var36']
         negative_pos = np.logical_or(df_test['var15']<23, df_test['saldo_medio_var5_hace2'] > 160000)
         negative_pos = np.logical_or(negative_pos, df_test['saldo_var33'] > 0)
         negative_pos = np.logical_or(negative_pos, df_test['var38'] > 3988596)
-      #  negative_pos = np.logical_or(negative_pos, df_test['V21'] > 7500)
+        negative_pos = np.logical_or(negative_pos, df_test['var21'] > 7500)
+        negative_pos = np.logical_or(negative_pos, nv > 0)
+        negative_pos = np.logical_or(negative_pos, df_test['num_var30'] > 9)
+        negative_pos = np.logical_or(negative_pos, df_test['num_var13_0']>6)
+        negative_pos = np.logical_or(negative_pos, df_test['num_var33_0']>0)
+        negative_pos = np.logical_or(negative_pos, df_test['imp_ent_var16_ult1']>51003)
+        negative_pos = np.logical_or(negative_pos, df_test['imp_op_var39_comer_ult3']>13184)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_medio_var5_ult3']>108251)
+        negative_pos = np.logical_or(negative_pos, df_test['num_var37_0']>45)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_var5']>137615)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_var8']>60099)
+        negative_pos = np.logical_or(negative_pos, nv2<=24)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_var14']>19053.78)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_var17']>288188.97)
+        negative_pos = np.logical_or(negative_pos, df_test['saldo_var26']>10381.29)
+        negative_pos = np.logical_or(negative_pos, df_test['num_var13_largo_0']>3)
+        negative_pos = np.logical_or(negative_pos, df_test['imp_op_var40_comer_ult1']>3639.87)
+        negative_pos = np.logical_or(negative_pos, df_test['imp_op_var40_comer_ult1']>14010)
+
+
+
         test_id = df_test.ID
 
 
